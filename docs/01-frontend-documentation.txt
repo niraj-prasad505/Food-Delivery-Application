@@ -1,0 +1,650 @@
+FRONTEND DOCUMENTATION — FOOD DELIVERY MVP
+
+Goal:
+Build a simple, fully working food-delivery project within 10–15 days.
+Use a clean and practical structure, but avoid advanced architecture and unnecessary features.
+
+==================================================
+1. REQUIRED CUSTOMER PAGES
+==================================================
+
+1. Home / Landing
+   - Banner / Ads
+   - Featured Products
+   - Popular Products
+   - Shop highlights
+   - Navbar + Footer
+
+2. Login
+   - Customer login
+
+3. Registration
+   - Customer registration
+
+4. Shop Listing
+   - Show available shops
+
+5. Shop Details
+   - Shop information
+   - Shop products
+
+6. Product Listing
+   - Show products
+
+7. Product Details
+   - Image
+   - Name
+   - Price
+   - Description
+   - Quantity
+   - Add to Cart
+   - Add / Remove Wishlist
+
+8. Cart
+   - Products
+   - Quantity
+   - Price
+   - Total
+   - Checkout
+
+9. Wishlist
+   - Show saved products
+   - Remove product
+
+10. Checkout
+    - Delivery address
+    - Order summary
+    - Total
+    - Payment method
+    - Place Order
+
+11. Order Success
+    - Order confirmation
+
+12. My Orders
+    - Customer's orders
+    - Order status
+
+13. Order Details
+    - Products
+    - Quantity
+    - Total
+    - Status
+    - Delivery address
+
+
+CUSTOMER FLOW
+
+        Home
+          |
+          v
+    Shops / Products
+          |
+          v
+    Product Details
+          |
+          v
+      Add to Cart
+          |
+          v
+         Cart
+          |
+          v
+       Checkout
+          |
+          v
+     Place Order
+          |
+          v
+    Order Success
+          |
+          v
+      My Orders
+
+
+==================================================
+2. REQUIRED OWNER PAGES
+==================================================
+
+1. Owner Login
+2. Owner Registration
+3. Owner Dashboard
+4. Shop Management
+5. Product Management
+6. Orders Management
+
+Owner should be able to:
+- Create / Edit / Delete shop
+- Add / Edit / Delete products
+- View orders
+- Update order status
+
+
+OWNER FLOW
+
+       Owner Login
+            |
+            v
+        Dashboard
+            |
+     +------+------+
+     |      |      |
+     v      v      v
+   Shop  Products Orders
+   Mgmt    Mgmt
+     |      |       |
+     v      v       v
+ Create/  Add/Edit  View
+ Edit/    /Delete   Order
+ Delete               |
+                      v
+                Update Status
+
+
+==================================================
+3. SHARED REUSABLE COMPONENTS
+==================================================
+
+Keep components simple and reusable.
+
+- Navbar
+- Footer
+- ProductCard
+- ShopCard
+- Button
+- Input
+- Loading
+- ErrorMessage
+- EmptyState
+- QuantityControl
+- ProtectedRoute
+
+Rule:
+Create a component when it is reused or makes a page cleaner.
+Do not create unnecessary components.
+
+
+==================================================
+4. PAGE-BY-PAGE BASIC REQUIREMENTS
+==================================================
+
+HOME
+Navbar
+  |
+  v
+Ads / Banner
+  |
+  v
+Featured Products
+  |
+  v
+Popular Products
+  |
+  v
+Shops
+  |
+  v
+Footer
+
+
+SHOP DETAILS
+Shop Information
+      |
+      v
+Shop Products
+      |
+      v
+Product Card
+      |
+      v
+Product Details
+
+
+PRODUCT DETAILS
+- Product image
+- Name
+- Price
+- Description
+- Quantity
+- Add to Cart
+- Wishlist
+
+
+CART
+Cart
+ |
+ v
+Product
+ |
+ v
+Quantity +/-
+ |
+ v
+Price
+ |
+ v
+Total
+ |
+ v
+Checkout
+
+
+CHECKOUT
+- Delivery address
+- Order summary
+- Total amount
+- Payment method
+- Place order
+
+
+MY ORDERS
+My Orders
+   |
+   v
+Order Card
+   |
+   v
+Status
+   |
+   v
+Order Details
+
+
+OWNER PRODUCT MANAGEMENT
+Products
+   |
+   +--> Add Product
+   |
+   +--> Edit Product
+   |
+   +--> Delete Product
+
+
+OWNER ORDERS
+Orders
+  |
+  v
+Order Details
+  |
+  v
+Current Status
+  |
+  v
+Update Status
+
+
+==================================================
+5. CUSTOMER FLOW DIAGRAM
+==================================================
+
+Register / Login
+      |
+      v
+     Home
+      |
+      +------> Shops
+      |
+      +------> Products
+                   |
+                   v
+            Product Details
+                   |
+                   v
+              Add to Cart
+                   |
+                   v
+                 Cart
+                   |
+                   v
+               Checkout
+                   |
+                   v
+              Place Order
+                   |
+                   v
+             Order Success
+                   |
+                   v
+              My Orders
+
+
+==================================================
+6. OWNER FLOW DIAGRAM
+==================================================
+
+Owner Register / Login
+          |
+          v
+      Dashboard
+          |
+          +------> Shop Management
+          |           |
+          |           v
+          |       Create/Edit/Delete
+          |
+          +------> Product Management
+          |           |
+          |           v
+          |       Add/Edit/Delete
+          |
+          +------> Orders
+                      |
+                      v
+                 View Order
+                      |
+                      v
+                Update Status
+
+
+==================================================
+7. FRONTEND -> API -> BACKEND FLOW
+==================================================
+
+Frontend (React)
+       |
+       | HTTP Request
+       v
+API Route (Express)
+       |
+       v
+Controller
+       |
+       v
+Model
+       |
+       v
+MongoDB
+       |
+       v
+Response
+       |
+       v
+Frontend (React)
+
+
+Example:
+
+React
+  |
+  | GET /api/products
+  v
+Express Route
+  |
+  v
+Product Controller
+  |
+  v
+Product Model
+  |
+  v
+MongoDB
+  |
+  v
+Products JSON
+  |
+  v
+React -> Product Cards
+
+
+Important:
+Frontend does NOT directly communicate with MongoDB.
+
+
+==================================================
+8. TASK DIVISION
+==================================================
+
+NEERAJ — MAIN CUSTOMER FLOW
+
+- Home / Landing
+- Product Listing
+- Product Details
+- Cart
+- Checkout
+- Order Success
+- My Orders
+- Order Details
+- Customer API integration
+- Final frontend integration
+
+Main goal:
+Make the complete customer purchasing flow work.
+
+
+AKSHIT
+
+Customer:
+- Login
+- Registration
+- Shop Listing
+- Shop Details
+- Wishlist
+- Customer Profile
+
+Owner:
+- Owner Login
+- Owner Registration
+- Owner Dashboard
+- Shop Management
+- Product Management
+
+
+SANKET
+
+Mainly testing + small reusable UI work.
+
+Testing:
+- Customer authentication
+- Owner authentication
+- Home
+- Shops / Products
+- Product Details
+- Cart
+- Wishlist
+- Checkout
+- Orders
+- Owner features
+- Responsive UI
+- API error cases
+
+Small components / fixes:
+- Loading
+- Empty State
+- Error Message
+- Quantity Control
+- Small UI fixes
+- Minor responsive fixes
+
+
+==================================================
+9. SANKET — TESTING + SMALL COMPONENT WORK
+==================================================
+
+Testing should happen continuously.
+
+Feature Developed
+       |
+       v
+   Sanket Tests
+       |
+   +---+---+
+   |       |
+  Bug?     No
+   |       |
+  Yes      v
+   |    Continue
+   v
+Fix Bug
+   |
+   v
+Retest
+
+
+Testing priority:
+1. Login / Registration
+2. Shops / Products
+3. Cart
+4. Wishlist
+5. Checkout
+6. Orders
+7. Owner features
+8. Responsive UI
+9. API errors
+
+
+==================================================
+10. IMPLEMENTATION ORDER
+==================================================
+
+STEP 1
+Project setup
+  |
+  v
+Routing + basic components
+  |
+  v
+Authentication
+
+STEP 2
+Shops
+  |
+  v
+Products
+  |
+  v
+Product Details
+
+STEP 3
+Cart
+  |
+  v
+Wishlist
+  |
+  v
+Checkout
+
+STEP 4
+Place Order
+  |
+  v
+Order Success
+  |
+  v
+My Orders
+  |
+  v
+Order Details
+
+STEP 5
+Owner Pages
+  |
+  v
+Shop Management
+  |
+  v
+Product Management
+  |
+  v
+Owner Orders
+
+STEP 6
+Frontend <-> API Integration
+  |
+  v
+Complete Flow Testing
+
+STEP 7
+Bug Fixes
+  |
+  v
+Responsive UI
+  |
+  v
+Final Integration
+  |
+  v
+Deployment
+
+
+==================================================
+11. MVP PRIORITY IF TIME BECOMES SHORT
+==================================================
+
+RED — MUST HAVE
+
+Customer:
+- Authentication
+- Shops
+- Products
+- Product Details
+- Cart
+- Checkout
+- Place Order
+- My Orders
+
+Owner:
+- Authentication
+- Manage Products
+- View Orders
+- Update Order Status
+
+
+YELLOW — IMPORTANT BUT CAN BE SIMPLIFIED
+
+- Home / Landing
+- Wishlist
+- Owner Dashboard
+- Customer Profile
+
+
+GREEN — ONLY IF TIME REMAINS
+
+- Advanced search
+- Advanced filters
+- Reviews
+- Ratings
+- Coupons
+- Online payment
+- Notifications
+- Advanced analytics
+
+
+FINAL MVP RULE
+
+First make this complete flow work:
+
+CUSTOMER
+Login
+  |
+  v
+Browse Shops / Products
+  |
+  v
+Add to Cart
+  |
+  v
+Checkout
+  |
+  v
+Place Order
+  |
+  v
+My Orders
+
+
+OWNER
+Login
+  |
+  v
+Manage Shop / Products
+  |
+  v
+View Customer Order
+  |
+  v
+Update Order Status
+
+
+Do not expand the scope until the basic working MVP is complete.
+
+Clean structure + working features > advanced features.

@@ -1,0 +1,1208 @@
+02-DATABASE-MODELS.txt
+========================
+
+FOOD DELIVERY PROJECT
+DATABASE MODELS + MODULE CONNECTION + ROUTES
+==============================================
+
+PURPOSE
+-------
+This document describes ONLY the database-related modules of the food
+delivery project and explains how these modules connect with each other.
+
+Current modules:
+
+    User
+    Owner
+    Shop
+    Product
+    Cart
+    Wishlist
+    Order
+    LandingPage
+    EmailOtp
+
+The goal is to keep the architecture simple, understandable, and easy
+for the backend team to implement without unnecessary complexity.
+
+
+============================================================
+1. BASIC ARCHITECTURE
+============================================================
+
+Customer side:
+
+    User
+      |
+      +---- Cart
+      |
+      +---- Wishlist
+      |
+      +---- Order
+                  |
+                  +---- Shop
+                  |
+                  +---- Product
+
+
+Owner side:
+
+    Owner
+      |
+      +---- Shop
+                |
+                +---- Product
+                |
+                +---- Order
+
+
+Landing page:
+
+    LandingPage
+        |
+        +---- Product IDs
+        |
+        +---- Ads
+
+
+Authentication:
+
+    User Auth --------> User
+    Owner Auth -------> Owner
+    Email OTP --------> EmailOtp
+
+
+IMPORTANT:
+----------
+User and Owner are separate entities.
+
+There is NO:
+
+    Owner -> User
+
+relationship.
+
+Customer authentication and Owner authentication are handled separately.
+
+
+============================================================
+2. USER MODEL
+============================================================
+
+FILE:
+    User-model.js
+
+PURPOSE:
+    Represents the customer of the application.
+
+RESPONSIBILITIES:
+    - Customer account information
+    - Customer profile
+    - Customer authentication-related information
+    - Customer-related application data references
+
+MAIN CONNECTIONS:
+
+    User -> Cart
+    User -> Wishlist
+    User -> Order
+
+The User model should NOT contain the complete Cart, Wishlist, or Order
+objects. Those are separate modules.
+
+
+USER FLOW:
+----------
+
+    Customer registers/logs in
+            |
+            v
+          User
+            |
+       +----+----+
+       |         |
+       v         v
+     Cart     Wishlist
+       |
+       v
+     Order
+
+
+============================================================
+3. OWNER MODEL
+============================================================
+
+FILE:
+    Owner-model.js
+
+PURPOSE:
+    Represents a shop owner/provider.
+
+IMPORTANT:
+    Owner is completely independent from User.
+
+Owner authentication is handled separately.
+
+MAIN CONNECTION:
+
+    Owner -> Shop
+
+OWNER FLOW:
+-----------
+
+    Owner registers/logs in
+            |
+            v
+          Owner
+            |
+            v
+           Shop
+            |
+            v
+         Products
+
+
+An Owner is responsible for managing the shop and its products.
+
+
+============================================================
+4. SHOP MODEL
+============================================================
+
+FILE:
+    Shop-model.js
+
+PURPOSE:
+    Represents a restaurant/shop that provides products.
+
+MAIN CONNECTIONS:
+
+    Shop -> Owner
+    Shop -> Product
+    Shop -> Order
+
+IMPORTANT FIELDS:
+
+    owner
+    name
+    description
+    image
+    phone
+    address
+    city
+    isOpen
+    isActive
+
+
+RELATIONSHIP:
+
+    Owner
+      |
+      v
+    Shop
+      |
+      +---- Product
+      +---- Product
+      +---- Product
+
+
+The Shop model should contain the Owner ID.
+
+The Product model should contain the Shop ID.
+
+This allows us to identify which owner provides which product.
+
+
+============================================================
+5. PRODUCT MODEL
+============================================================
+
+FILE:
+    Product-model.js
+
+PURPOSE:
+    Represents a food/product available in a shop.
+
+MAIN CONNECTION:
+
+    Product -> Shop
+
+IMPORTANT DATA:
+
+    _id
+    name
+    description
+    price
+    image
+    category
+    rating/review information
+    availability
+    shop
+
+
+RELATIONSHIP:
+
+    Shop
+      |
+      +---- Product
+      +---- Product
+      +---- Product
+
+
+A Product belongs to a Shop.
+
+The Product ID is reused by other modules such as:
+
+    Cart
+    Wishlist
+    LandingPage
+    Order
+
+
+IMPORTANT:
+----------
+Do not copy the complete Product document into Cart, Wishlist, or
+LandingPage.
+
+Store the Product ID/reference and fetch the required Product data
+when needed.
+
+
+============================================================
+6. CART MODEL
+============================================================
+
+FILE:
+    Cart-model.js
+
+PURPOSE:
+    Stores the customer's current shopping cart.
+
+BASIC STRUCTURE:
+
+    Cart
+      |
+      +---- user
+      |
+      +---- items[]
+              |
+              +---- product
+              +---- quantity
+
+
+MAIN CONNECTIONS:
+
+    Cart -> User
+    Cart -> Product
+
+
+CART FLOW:
+----------
+
+    Customer
+       |
+       v
+    Product
+       |
+       | Add to cart
+       v
+      Cart
+       |
+       | Checkout
+       v
+      Order
+
+
+IMPORTANT MULTI-SHOP RULE:
+---------------------------
+
+For this project, the safest simple approach is:
+
+    ONE CART = ONE SHOP
+
+Example:
+
+    Customer adds Burger from Shop A
+            |
+            v
+        Cart of Shop A
+
+If the customer tries to add Pizza from Shop B, the frontend/backend
+should ask the customer to clear the existing cart or start a new cart.
+
+Why?
+
+Because one Order is connected to one Shop.
+
+This avoids a complicated multi-shop checkout and makes Order processing,
+payment, delivery, and shop management much easier.
+
+
+CART ROUTES:
+------------
+
+POST   /api/cart
+    Add a product to the customer's cart.
+
+GET    /api/cart
+    Get the current customer's cart.
+
+PUT    /api/cart/:productId
+    Change the quantity of a product.
+
+DELETE /api/cart/:productId
+    Remove a product from the cart.
+
+DELETE /api/cart
+    Clear the complete cart.
+
+
+REQUEST FLOW:
+
+    Route
+      |
+      v
+    Cart Controller
+      |
+      v
+    Cart Model
+      |
+      +---- User
+      |
+      +---- Product
+      |
+      v
+    Response
+
+
+============================================================
+7. WISHLIST MODEL
+============================================================
+
+FILE:
+    Wishlist-model.js
+
+PURPOSE:
+    Stores products that the customer wants to save for later.
+
+BASIC STRUCTURE:
+
+    Wishlist
+      |
+      +---- user
+      |
+      +---- items[]
+              |
+              +---- product
+
+
+MAIN CONNECTIONS:
+
+    Wishlist -> User
+    Wishlist -> Product
+
+
+WISHLIST FLOW:
+--------------
+
+    Customer
+       |
+       v
+    Product
+       |
+       | Add to wishlist
+       v
+    Wishlist
+
+
+WISHLIST ROUTES:
+----------------
+
+POST   /api/wishlist/:productId
+    Add a product to wishlist.
+
+GET    /api/wishlist
+    Get customer's wishlist.
+
+DELETE /api/wishlist/:productId
+    Remove a product from wishlist.
+
+
+IMPORTANT:
+----------
+Wishlist items do not need quantity.
+
+A product is either in the wishlist or it is not.
+
+
+============================================================
+8. ORDER MODEL
+============================================================
+
+FILE:
+    Order-model.js
+
+PURPOSE:
+    Represents a placed order.
+
+This is one of the most important modules because this is a multi-shop
+food delivery application.
+
+
+ORDER CONNECTION:
+
+    User
+      |
+      | places
+      v
+    Order
+      |
+      +---- Shop
+      |
+      +---- items[]
+              |
+              +---- Product
+              +---- name
+              +---- price
+              +---- quantity
+
+
+The Order identifies:
+
+    1. WHO ordered       -> User
+    2. FROM WHICH SHOP   -> Shop
+    3. WHAT was ordered  -> Product/items
+    4. HOW MUCH          -> quantity/price/total
+    5. PAYMENT           -> payment information
+    6. DELIVERY          -> delivery address/status
+
+
+ORDER ITEM SNAPSHOT:
+--------------------
+
+Order should store important information such as:
+
+    product ID
+    product name
+    product price
+    quantity
+
+Example:
+
+    Product today:
+        Burger = Rs. 150
+
+    Customer places order.
+
+    Later:
+        Burger = Rs. 180
+
+The old order must still show:
+
+        Burger = Rs. 150
+
+Therefore, Order keeps the purchase-time name and price.
+
+
+ORDER STATUS:
+
+    pending
+    confirmed
+    preparing
+    out_for_delivery
+    delivered
+    cancelled
+
+
+PAYMENT STATUS:
+
+    pending
+    paid
+    failed
+    refunded
+
+
+ORDER ROUTES:
+-------------
+
+POST   /api/orders
+    Create an order from the customer's cart.
+
+GET    /api/orders
+    Get orders belonging to the logged-in customer.
+
+GET    /api/orders/:orderId
+    Get one customer's order by ID.
+
+PUT    /api/orders/:orderId/cancel
+    Cancel an order if cancellation is allowed.
+
+
+OWNER ORDER ROUTES:
+-------------------
+
+GET    /api/owner/orders
+    Get orders belonging to the owner's shop.
+
+GET    /api/owner/orders/:orderId
+    Get one order for the owner's shop.
+
+PUT    /api/owner/orders/:orderId/status
+    Update order status.
+
+Example:
+
+    pending
+       |
+       v
+    confirmed
+       |
+       v
+    preparing
+       |
+       v
+    out_for_delivery
+       |
+       v
+    delivered
+
+
+ORDER CREATION FLOW:
+--------------------
+
+    Customer
+       |
+       v
+      Cart
+       |
+       | Checkout
+       v
+    Order Controller
+       |
+       +---- Get Cart
+       |
+       +---- Identify User
+       |
+       +---- Identify Shop
+       |
+       +---- Get Product information
+       |
+       +---- Calculate total
+       |
+       +---- Create Order
+       |
+       +---- Clear Cart
+       |
+       v
+    Order created
+
+
+IMPORTANT:
+----------
+The customer should not be trusted to send the final total amount.
+
+The backend should calculate the order total using product prices and
+quantities.
+
+
+============================================================
+9. LANDING PAGE MODEL
+============================================================
+
+FILE:
+    LandingPage-model.js
+
+PURPOSE:
+    Stores the product references and advertisements that should appear
+    on the main landing page.
+
+KEEP THIS MODEL SIMPLE.
+
+STRUCTURE:
+
+    LandingPage
+      |
+      +---- ads[]
+      |
+      +---- featuredProducts[]
+      |
+      +---- recommendedProducts[]
+      |
+      +---- popularProducts[]
+
+
+PRODUCT LISTS:
+--------------
+
+    featuredProducts
+    recommendedProducts
+    popularProducts
+
+These lists should contain Product IDs.
+
+Example:
+
+    featuredProducts:
+        [productId1, productId2, productId3]
+
+
+WHY STORE PRODUCT IDs?
+----------------------
+
+Product information already exists in Product-model.js.
+
+Do not duplicate:
+
+    name
+    price
+    image
+    rating
+
+inside LandingPage.
+
+Instead:
+
+    LandingPage
+        |
+        +---- Product ID
+        +---- Product ID
+        +---- Product ID
+
+
+LANDING PAGE ROUTE:
+-------------------
+
+GET    /api/landing
+
+This single route should provide the data required to build the landing
+page.
+
+
+LANDING PAGE REQUEST FLOW:
+--------------------------
+
+    Frontend
+       |
+       | GET /api/landing
+       v
+    Landing Route
+       |
+       v
+    Landing Controller
+       |
+       +---- Get LandingPage
+       |
+       +---- Get/Populate Products
+       |
+       v
+    Complete response
+       |
+       v
+    Frontend
+
+
+IMPORTANT:
+----------
+The frontend does NOT use Mongoose populate().
+
+populate() is a backend/Mongoose operation.
+
+The backend can take the Product IDs stored in LandingPage, fetch the
+Product documents, and return the required product data to the frontend.
+
+Example response:
+
+    {
+        ads: [...],
+
+        featuredProducts: [
+            {
+                _id: "...",
+                name: "...",
+                price: 150,
+                image: "...",
+                rating: 4.5
+            }
+        ],
+
+        recommendedProducts: [...],
+
+        popularProducts: [...]
+    }
+
+
+This avoids making many separate product API calls just to render the
+landing page.
+
+
+============================================================
+10. EMAIL OTP MODEL
+============================================================
+
+FILE:
+    EmailOtp-model.js
+
+PURPOSE:
+    Stores temporary OTP information for email verification/authentication.
+
+TYPICAL DATA:
+
+    email
+    otp
+    expiresAt
+    verification status
+    timestamps
+
+
+OTP FLOW:
+---------
+
+    Register/Login process
+          |
+          v
+      Generate OTP
+          |
+          v
+       EmailOtp
+          |
+          v
+      Send OTP
+          |
+          v
+      User submits OTP
+          |
+          v
+      Verify OTP
+          |
+          v
+      Continue authentication
+
+
+OTP ROUTES:
+-----------
+
+POST   /api/auth/send-otp
+    Generate and send an OTP.
+
+POST   /api/auth/verify-otp
+    Verify the submitted OTP.
+
+The exact route names can change depending on the authentication module,
+but the EmailOtp model remains responsible only for OTP data.
+
+
+IMPORTANT:
+----------
+OTP records should be temporary.
+
+Do not use EmailOtp as permanent user profile data.
+
+
+============================================================
+11. COMPLETE MODULE CONNECTION
+============================================================
+
+CUSTOMER PURCHASE FLOW
+----------------------
+
+    User
+      |
+      | logged-in customer
+      v
+    Product
+      |
+      | add to cart
+      v
+    Cart
+      |
+      | checkout
+      v
+    Order
+      |
+      +---- User
+      |
+      +---- Shop
+      |
+      +---- Product
+
+
+SHOP OWNER FLOW
+---------------
+
+    Owner
+      |
+      v
+    Shop
+      |
+      v
+    Product
+      |
+      v
+    Customer Order
+
+
+WISHLIST FLOW
+-------------
+
+    User
+      |
+      v
+    Product
+      |
+      | save
+      v
+    Wishlist
+
+
+LANDING PAGE FLOW
+-----------------
+
+    LandingPage
+       |
+       +---- Ads
+       |
+       +---- Product IDs
+                 |
+                 v
+              Product
+                 |
+                 v
+             Frontend
+
+
+============================================================
+12. ROUTE RESPONSIBILITY
+============================================================
+
+USER / CUSTOMER
+---------------
+
+POST   /api/auth/register
+POST   /api/auth/login
+GET    /api/user/profile
+PUT    /api/user/profile
+
+
+PRODUCT
+-------
+
+GET    /api/products
+GET    /api/products/:productId
+
+POST   /api/owner/products
+PUT    /api/owner/products/:productId
+DELETE /api/owner/products/:productId
+
+
+SHOP
+----
+
+GET    /api/shops
+GET    /api/shops/:shopId
+
+POST   /api/owner/shop
+PUT    /api/owner/shop
+
+
+CART
+----
+
+POST   /api/cart
+GET    /api/cart
+PUT    /api/cart/:productId
+DELETE /api/cart/:productId
+DELETE /api/cart
+
+
+WISHLIST
+--------
+
+POST   /api/wishlist/:productId
+GET    /api/wishlist
+DELETE /api/wishlist/:productId
+
+
+ORDER
+-----
+
+POST   /api/orders
+GET    /api/orders
+GET    /api/orders/:orderId
+PUT    /api/orders/:orderId/cancel
+
+OWNER ORDER MANAGEMENT
+----------------------
+
+GET    /api/owner/orders
+GET    /api/owner/orders/:orderId
+PUT    /api/owner/orders/:orderId/status
+
+
+LANDING PAGE
+------------
+
+GET    /api/landing
+
+
+OTP
+---
+
+POST   /api/auth/send-otp
+POST   /api/auth/verify-otp
+
+
+NOTE:
+-----
+These are the planned responsibilities/routes.
+
+The exact URL naming can be adjusted when the route files are implemented.
+The important rule is that each route should belong to the correct module
+and controller.
+
+
+============================================================
+13. CONTROLLER RESPONSIBILITY
+============================================================
+
+The controller handles the request and coordinates the required models.
+
+Example:
+
+    GET /api/landing
+            |
+            v
+    landingController
+            |
+            +---- LandingPage.findOne()
+            |
+            +---- Product.find(...)
+            |
+            v
+        Response
+
+
+Example:
+
+    POST /api/orders
+            |
+            v
+    orderController
+            |
+            +---- Get User
+            |
+            +---- Get Cart
+            |
+            +---- Get Shop
+            |
+            +---- Get Products
+            |
+            +---- Calculate total
+            |
+            +---- Create Order
+            |
+            +---- Clear Cart
+            |
+            v
+        Response
+
+
+The model defines database structure.
+
+The controller manages the request and coordinates models.
+
+The route only connects the URL to the controller.
+
+
+============================================================
+14. ROUTE -> CONTROLLER -> MODEL
+============================================================
+
+Every module should generally follow:
+
+    Route
+      |
+      v
+    Controller
+      |
+      v
+    Model
+      |
+      v
+    MongoDB
+      |
+      v
+    Controller
+      |
+      v
+    Response
+
+
+Example:
+
+    GET /api/products/123
+            |
+            v
+    productRoute
+            |
+            v
+    productController
+            |
+            v
+    Product.findById(123)
+            |
+            v
+    MongoDB
+            |
+            v
+    Product data
+            |
+            v
+    Response
+
+
+============================================================
+15. IMPORTANT RELATIONSHIP RULES
+============================================================
+
+RULE 1:
+    User and Owner are separate entities.
+
+RULE 2:
+    Owner authentication does not depend on User authentication.
+
+RULE 3:
+    Shop belongs to Owner.
+
+RULE 4:
+    Product belongs to Shop.
+
+RULE 5:
+    Cart belongs to User.
+
+RULE 6:
+    Wishlist belongs to User.
+
+RULE 7:
+    Order belongs to User and identifies the Shop.
+
+RULE 8:
+    Order items reference Product and store purchase-time data such as
+    name, price, and quantity.
+
+RULE 9:
+    LandingPage stores Product references, not duplicate Product data.
+
+RULE 10:
+    Mongoose populate() is performed in the backend, not the frontend.
+
+RULE 11:
+    Backend calculates important values such as Order total.
+
+RULE 12:
+    Keep one Cart connected to one Shop for the current project to avoid
+    unnecessary multi-shop checkout complexity.
+
+RULE 13:
+    Do not create another model unless the feature actually requires it.
+
+RULE 14:
+    If a relationship is changed, update this document and inform the
+    backend team before changing dependent controllers/routes.
+
+
+============================================================
+16. FINAL RELATIONSHIP MAP
+============================================================
+
+                         +----------------+
+                         |     Owner      |
+                         +-------+--------+
+                                 |
+                                 | owns/manages
+                                 v
+                         +----------------+
+                         |      Shop      |
+                         +-------+--------+
+                                 |
+                                 | provides
+                                 v
+                         +----------------+
+                         |    Product     |
+                         +---+---+---+----+
+                             |   |   |
+                +------------+   |   +-------------+
+                |                |                 |
+                v                v                 v
+             Cart           Wishlist            LandingPage
+                |                |                 |
+                +--------+-------+                 |
+                         |                         |
+                         v                         |
+                       User <----------------------+
+                         |
+                         | places
+                         v
+                       Order
+                         |
+                         +---- Shop
+                         |
+                         +---- Product items
+
+
+AUTHENTICATION
+--------------
+
+    Customer Auth
+         |
+         v
+       User
+
+    Owner Auth
+         |
+         v
+       Owner
+
+    Email OTP
+         |
+         v
+      EmailOtp
+
+
+============================================================
+17. IMPLEMENTATION ORDER
+============================================================
+
+To avoid dependency problems, implement the modules in this order:
+
+    1. User
+    2. Owner
+    3. Shop
+    4. Product
+    5. Cart
+    6. Wishlist
+    7. Order
+    8. LandingPage
+    9. EmailOtp / Authentication integration
+
+
+Reason:
+
+    Owner -> Shop -> Product
+
+must exist before the shop/product-related purchase flow can be tested.
+
+Then:
+
+    User -> Cart -> Order
+
+can be connected.
+
+Finally:
+
+    LandingPage -> Product
+
+can use the already-existing Product data.
+
+
+END OF DATABASE MODEL DOCUMENTATION
+====================================

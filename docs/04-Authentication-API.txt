@@ -1,0 +1,138 @@
+Food Delivery Application – Authentication API
+
+Base URL: http://localhost:5000/api/users
+
+Routes
+
+
+POST/create-otp
+
+Working: Generates a 6-digit registration
+OTP, hashes it, stores it with purpose 'register', and sends it by email.
+
+Body: {"email":"user@gmail.com"}
+-------------------------------------------------------------------------------------------
+
+
+POST/register
+
+Working: Verifies the registration OTP,hashes the password, creates the user and user preferences, then deletes theOTP.
+
+Body: {"fullname":"NirajPrasad","email":"user@gmail.com","otp":"123456","password":"Test@12345","confirmPassword":"Test@12345"}
+-------------------------------------------------------------------------------------------
+
+
+POST/login
+
+Working: Logs in with email and password,creates a JWT, and stores it in an HTTP-only cookie.
+
+Body: {"email":"user@gmail.com","password":"Test@12345"}
+-------------------------------------------------------------------------------------------
+
+
+POST/create-login-otp
+
+Working: Checks that the user exists,generates a login OTP, stores it with purpose 'login', and sends it by email.
+
+Body: {"email":"user@gmail.com"}
+-------------------------------------------------------------------------------------------
+
+
+POST/login-otp
+
+Working: Verifies the login OTP, creates a JWT, stores it in an HTTP-only cookie, and deletes the used OTP.
+
+Body: {"email":"user@gmail.com","otp":"123456"}
+-------------------------------------------------------------------------------------------
+
+
+POST/logout
+
+Working: Clears the authentication cookieand logs the user out.
+
+Body: No body
+-------------------------------------------------------------------------------------------
+
+
+GET/me
+
+Working: Returns the currentlyauthenticated user. Requires the authentication middleware and JWT cookie.
+
+Body: No body
+-------------------------------------------------------------------------------------------
+
+
+POST/forgot-password
+
+Working: Creates a password-reset token,saves its expiry, and sends a reset link by email.
+
+Body:{"email":"user@gmail.com"}
+-------------------------------------------------------------------------------------------
+
+
+POST/reset-password/:token
+
+Working: Validates the reset token, hashes the new password, updates the user, and removes the reset token.
+
+Body: {"password":"NewPassword@123","confirmPassword":"NewPassword@123"}
+-------------------------------------------------------------------------------------------
+
+
+Required Dependencies
+
+express – API/server
+mongoose – MongoDB
+bcrypt – password and OTP hashing
+jsonwebtoken – JWT authentication
+cookie-parser – cookies
+dotenv – environment variables
+nodemailer – email sending (if used by sendEmail.js)
+-------------------------------------------------------------------------------------------
+
+
+Environment Variables
+
+PORT – Server port
+
+MONGO_URI – MongoDB connection string
+
+JWT_SECRET – Secret used to sign JWTs
+
+CLIENT_URL – Frontend URL used for password reset links
+
+Email variables required by sendEmail.js – used to send OTP and password-reset
+emails
+
+----------------------------------------------------------------------------------
+
+Email Variables
+
+sendEmail.js requires email credentials to send OTP and password-reset emails.
+
+
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_gmail_app_password
+
+
+
+EMAIL_USER → The Gmail account used by the application to send emails.
+EMAIL_PASSWORD → A Gmail App Password, not your normal Gmail password.
+
+These are used for:
+
+Registration OTP
+Login OTP
+Password reset emails
+Other future application emails
+
+-------------------------------------------------------------------------------------------
+
+Authentication Flow
+
+Registration: /create-otp → /register
+
+Password Login: /login
+
+OTP Login: /create-login-otp → /login-otp
+
+Password Reset: /forgot-password → /reset-password/:token

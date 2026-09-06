@@ -8,14 +8,21 @@ const {
     logout,
     getCurrentUser,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    createOtp,
+    createLoginOtp,
+    loginOtp
 } = require("../controllers/UserAuth.controller");
 
 const authMiddleware = require("../middleware/auth.middleware");
 
 router.post("/register", register);
+router.post("/create-otp", createOtp);
 
 router.post("/login", login);
+
+router.post("/login-otp", loginOtp);
+router.post("/create-login-otp", createLoginOtp);
 
 router.post("/logout", logout);
 

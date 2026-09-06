@@ -4,7 +4,7 @@ A full-stack food delivery web application developed as an **internship project*
 
  **Status: Under Development**
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **MongoDB** — Database
 * **Express.js** — Backend framework

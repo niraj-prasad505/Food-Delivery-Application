@@ -1,0 +1,1515 @@
+# REVIEW MODULE
+
+## Architecture → API → Postman → Frontend
+
+---
+
+# 1. PURPOSE
+
+The Review module allows customers to:
+
+* Review a Shop
+* Review a Product
+* View Shop reviews
+* View Product reviews
+* Update their own review
+* Delete their own review
+
+The Review module is independent from the existing authentication
+architecture.
+
+Existing User authentication is reused only to identify the logged-in
+customer.
+
+---
+
+# 2. HIGH-LEVEL ARCHITECTURE
+
+```text
+                    FRONTEND
+                       |
+                       | HTTP Request
+                       v
+                REVIEW ROUTES
+                       |
+                       v
+              REVIEW CONTROLLER
+                       |
+          +------------+------------+
+          |            |            |
+          v            v            v
+        User          Shop        Product
+          \            |            /
+           \           |           /
+            +----------+----------+
+                       |
+                       v
+                  REVIEW MODEL
+                       |
+                       v
+                    MongoDB
+```
+
+The basic request flow is:
+
+```text
+Frontend
+   |
+   | POST /api/reviews
+   v
+reviewRoutes.js
+   |
+   v
+reviewController.js
+   |
+   v
+Review-model.js
+   |
+   v
+MongoDB
+```
+
+---
+
+# 3. FILE STRUCTURE
+
+Only the Review-related files are required:
+
+```text
+models/
+    Review-model.js
+
+controllers/
+    reviewController.js
+
+routes/
+    reviewRoutes.js
+```
+
+The existing authentication middleware is reused:
+
+```text
+middleware/
+    authMiddleware.js
+```
+
+---
+
+# 4. REVIEW DATABASE STRUCTURE
+
+## Review-model.js
+
+```js
+const mongoose = require("mongoose");
+
+const reviewSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    shop: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Shop",
+      required: true,
+      index: true,
+    },
+
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      default: null,
+      index: true,
+    },
+
+    rating: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 5,
+    },
+
+    comment: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+reviewSchema.index(
+  { user: 1, product: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      product: { $exists: true },
+    },
+  }
+);
+
+module.exports = mongoose.model("Review", reviewSchema);
+```
+
+---
+
+# 5. HOW THE DATA WORKS
+
+## Shop Review
+
+A customer reviews the shop itself.
+
+```text
+User
+  |
+  v
+Review
+  |
+  +---- shop
+  |
+  +---- product = null
+  |
+  +---- rating
+  |
+  +---- comment
+```
+
+Example:
+
+```json
+{
+  "shop": "68a123456789",
+  "rating": 4,
+  "comment": "Good food and fast delivery."
+}
+```
+
+The `user` is NOT sent from Postman/frontend.
+
+The backend gets it from:
+
+```js
+req.user.id
+```
+
+---
+
+# 6. PRODUCT REVIEW
+
+A customer reviews a specific product.
+
+```text
+User
+  |
+  v
+Review
+  |
+  +---- shop
+  |
+  +---- product
+  |
+  +---- rating
+  |
+  +---- comment
+```
+
+Example:
+
+```json
+{
+  "shop": "68a123456789",
+  "product": "68b987654321",
+  "rating": 5,
+  "comment": "Very tasty!"
+}
+```
+
+The backend must verify:
+
+```text
+Product belongs to Shop
+```
+
+For example:
+
+```text
+Product A
+   |
+   v
+Shop A
+```
+
+Valid:
+
+```text
+Product A + Shop A
+```
+
+Invalid:
+
+```text
+Product A + Shop B
+```
+
+---
+
+# 7. API BASE URL
+
+During local development:
+
+```text
+http://localhost:5000/api/reviews
+```
+
+If your backend uses another port, replace `5000`.
+
+For example:
+
+```text
+http://localhost:3000/api/reviews
+```
+
+---
+
+# 8. COMPLETE API ROUTES
+
+| Method | Endpoint                          | Authentication | Purpose             |
+| ------ | --------------------------------- | -------------- | ------------------- |
+| POST   | `/api/reviews`                    | Required       | Create review       |
+| GET    | `/api/reviews/shop/:shopId`       | Public         | Get shop reviews    |
+| GET    | `/api/reviews/product/:productId` | Public         | Get product reviews |
+| PUT    | `/api/reviews/:reviewId`          | Required       | Update own review   |
+| DELETE | `/api/reviews/:reviewId`          | Required       | Delete own review   |
+
+---
+
+# 9. REVIEW ROUTES CODE
+
+## reviewRoutes.js
+
+```js
+const express = require("express");
+
+const {
+  createReview,
+  getShopReviews,
+  getProductReviews,
+  updateReview,
+  deleteReview,
+} = require("../controllers/reviewController");
+
+const authMiddleware = require("../middleware/authMiddleware");
+
+const router = express.Router();
+
+
+// Create review
+router.post("/", authMiddleware, createReview);
+
+
+// Get shop reviews
+router.get("/shop/:shopId", getShopReviews);
+
+
+// Get product reviews
+router.get("/product/:productId", getProductReviews);
+
+
+// Update own review
+router.put("/:reviewId", authMiddleware, updateReview);
+
+
+// Delete own review
+router.delete("/:reviewId", authMiddleware, deleteReview);
+
+
+module.exports = router;
+```
+
+---
+
+# 10. CONNECT ROUTES TO SERVER
+
+In `server.js` or `app.js`:
+
+```js
+const reviewRoutes = require("./routes/reviewRoutes");
+
+app.use("/api/reviews", reviewRoutes);
+```
+
+Therefore:
+
+```text
+reviewRoutes.js
+       |
+       v
+/api/reviews
+       |
+       +---- POST   /
+       +---- GET    /shop/:shopId
+       +---- GET    /product/:productId
+       +---- PUT    /:reviewId
+       +---- DELETE /:reviewId
+```
+
+---
+
+# 11. REVIEW CONTROLLER
+
+## reviewController.js
+
+```js
+const Review = require("../models/Review-model");
+const Product = require("../models/Product-model");
+const Shop = require("../models/Shop-model");
+
+
+// ============================================================
+// CREATE REVIEW
+// ============================================================
+
+const createReview = async (req, res) => {
+  try {
+    const { shop, product, rating, comment } = req.body;
+
+    // Validate required fields
+    if (!shop || rating === undefined) {
+      return res.status(400).json({
+        message: "Shop and rating are required",
+      });
+    }
+
+    // Validate rating
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({
+        message: "Rating must be between 1 and 5",
+      });
+    }
+
+    // Check shop
+    const shopExists = await Shop.findById(shop);
+
+    if (!shopExists) {
+      return res.status(404).json({
+        message: "Shop not found",
+      });
+    }
+
+    // Check product if provided
+    if (product) {
+      const productExists = await Product.findOne({
+        _id: product,
+        shop: shop,
+      });
+
+      if (!productExists) {
+        return res.status(404).json({
+          message: "Product not found in this shop",
+        });
+      }
+    }
+
+    // Create review
+    const review = await Review.create({
+      user: req.user.id,
+      shop,
+      product: product || null,
+      rating,
+      comment: comment || null,
+    });
+
+    return res.status(201).json({
+      message: "Review created successfully",
+      review,
+    });
+
+  } catch (error) {
+
+    // Duplicate product review
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "You have already reviewed this product",
+      });
+    }
+
+    console.error("Create review error:", error);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// ============================================================
+// GET SHOP REVIEWS
+// ============================================================
+
+const getShopReviews = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+
+    const reviews = await Review.find({
+      shop: shopId,
+    })
+      .populate("user", "name")
+      .populate("product", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      count: reviews.length,
+      reviews,
+    });
+
+  } catch (error) {
+
+    console.error("Get shop reviews error:", error);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// ============================================================
+// GET PRODUCT REVIEWS
+// ============================================================
+
+const getProductReviews = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const reviews = await Review.find({
+      product: productId,
+    })
+      .populate("user", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      count: reviews.length,
+      reviews,
+    });
+
+  } catch (error) {
+
+    console.error("Get product reviews error:", error);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// ============================================================
+// UPDATE REVIEW
+// ============================================================
+
+const updateReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { rating, comment } = req.body;
+
+    const review = await Review.findOne({
+      _id: reviewId,
+      user: req.user.id,
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        message: "Review not found",
+      });
+    }
+
+    // Validate rating
+    if (rating !== undefined) {
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({
+          message: "Rating must be between 1 and 5",
+        });
+      }
+
+      review.rating = rating;
+    }
+
+    // Update comment
+    if (comment !== undefined) {
+      review.comment = comment;
+    }
+
+    await review.save();
+
+    return res.status(200).json({
+      message: "Review updated successfully",
+      review,
+    });
+
+  } catch (error) {
+
+    console.error("Update review error:", error);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// ============================================================
+// DELETE REVIEW
+// ============================================================
+
+const deleteReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+
+    const review = await Review.findOneAndDelete({
+      _id: reviewId,
+      user: req.user.id,
+    });
+
+    if (!review) {
+      return res.status(404).json({
+        message: "Review not found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Review deleted successfully",
+    });
+
+  } catch (error) {
+
+    console.error("Delete review error:", error);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+module.exports = {
+  createReview,
+  getShopReviews,
+  getProductReviews,
+  updateReview,
+  deleteReview,
+};
+```
+
+---
+
+# 12. POSTMAN SETUP
+
+Before testing:
+
+```text
+1. Start MongoDB
+2. Start Backend
+3. Login as a User
+4. Copy the JWT token
+5. Get a valid Shop ID
+6. Get a valid Product ID
+```
+
+Example IDs:
+
+```text
+User:
+68a111111111
+
+Shop:
+68a222222222
+
+Product:
+68a333333333
+```
+
+Do NOT use these fake IDs in the real request.
+
+Use IDs from your actual MongoDB database.
+
+---
+
+# 13. POSTMAN — CREATE SHOP REVIEW
+
+### Request
+
+```text
+POST
+http://localhost:5000/api/reviews
+```
+
+### Authorization
+
+Postman:
+
+```text
+Authorization
+    ↓
+Bearer Token
+    ↓
+YOUR_JWT_TOKEN
+```
+
+Or manually:
+
+```text
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Body
+
+Select:
+
+```text
+Body
+  ↓
+raw
+  ↓
+JSON
+```
+
+Send:
+
+```json
+{
+  "shop": "68a222222222",
+  "rating": 4,
+  "comment": "Good food and fast delivery."
+}
+```
+
+### Expected response
+
+```json
+{
+  "message": "Review created successfully",
+  "review": {
+    "_id": "68a444444444",
+    "user": "68a111111111",
+    "shop": "68a222222222",
+    "product": null,
+    "rating": 4,
+    "comment": "Good food and fast delivery.",
+    "createdAt": "2026-09-08T10:00:00.000Z",
+    "updatedAt": "2026-09-08T10:00:00.000Z"
+  }
+}
+```
+
+Notice:
+
+```text
+user
+```
+
+was automatically added by the backend.
+
+---
+
+# 14. POSTMAN — CREATE PRODUCT REVIEW
+
+### Request
+
+```text
+POST
+http://localhost:5000/api/reviews
+```
+
+Authorization:
+
+```text
+Bearer YOUR_JWT_TOKEN
+```
+
+Body:
+
+```json
+{
+  "shop": "68a222222222",
+  "product": "68a333333333",
+  "rating": 5,
+  "comment": "The burger was amazing!"
+}
+```
+
+Expected:
+
+```json
+{
+  "message": "Review created successfully",
+  "review": {
+    "_id": "68a555555555",
+    "user": "68a111111111",
+    "shop": "68a222222222",
+    "product": "68a333333333",
+    "rating": 5,
+    "comment": "The burger was amazing!"
+  }
+}
+```
+
+---
+
+# 15. POSTMAN — GET SHOP REVIEWS
+
+### Request
+
+```text
+GET
+http://localhost:5000/api/reviews/shop/68a222222222
+```
+
+No authentication required.
+
+Expected response:
+
+```json
+{
+  "count": 2,
+  "reviews": [
+    {
+      "_id": "68a555555555",
+      "user": {
+        "_id": "68a111111111",
+        "name": "Niraj"
+      },
+      "shop": "68a222222222",
+      "product": {
+        "_id": "68a333333333",
+        "name": "Chicken Burger"
+      },
+      "rating": 5,
+      "comment": "The burger was amazing!",
+      "createdAt": "2026-09-08T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+# 16. POSTMAN — GET PRODUCT REVIEWS
+
+### Request
+
+```text
+GET
+http://localhost:5000/api/reviews/product/68a333333333
+```
+
+No authentication required.
+
+Expected:
+
+```json
+{
+  "count": 2,
+  "reviews": [
+    {
+      "_id": "68a555555555",
+      "user": {
+        "_id": "68a111111111",
+        "name": "Niraj"
+      },
+      "product": "68a333333333",
+      "rating": 5,
+      "comment": "The burger was amazing!"
+    }
+  ]
+}
+```
+
+---
+
+# 17. POSTMAN — UPDATE REVIEW
+
+First create a review.
+
+Copy its:
+
+```text
+review._id
+```
+
+Example:
+
+```text
+68a555555555
+```
+
+### Request
+
+```text
+PUT
+http://localhost:5000/api/reviews/68a555555555
+```
+
+Authorization:
+
+```text
+Bearer YOUR_JWT_TOKEN
+```
+
+Body:
+
+```json
+{
+  "rating": 4,
+  "comment": "Food was good, but delivery was slightly late."
+}
+```
+
+Expected:
+
+```json
+{
+  "message": "Review updated successfully",
+  "review": {
+    "_id": "68a555555555",
+    "rating": 4,
+    "comment": "Food was good, but delivery was slightly late."
+  }
+}
+```
+
+---
+
+# 18. POSTMAN — DELETE REVIEW
+
+### Request
+
+```text
+DELETE
+http://localhost:5000/api/reviews/68a555555555
+```
+
+Authorization:
+
+```text
+Bearer YOUR_JWT_TOKEN
+```
+
+Expected:
+
+```json
+{
+  "message": "Review deleted successfully"
+}
+```
+
+---
+
+# 19. POSTMAN TEST ORDER
+
+Test the API in this exact order:
+
+```text
+1. Login
+      ↓
+2. Copy JWT token
+      ↓
+3. Get Shop ID
+      ↓
+4. Get Product ID
+      ↓
+5. POST /api/reviews
+      ↓
+6. GET /api/reviews/shop/:shopId
+      ↓
+7. GET /api/reviews/product/:productId
+      ↓
+8. PUT /api/reviews/:reviewId
+      ↓
+9. DELETE /api/reviews/:reviewId
+```
+
+If all nine steps work correctly, the Review API is ready for frontend
+integration.
+
+---
+
+# 20. IMPORTANT POSTMAN ERROR TESTS
+
+Don't test only successful requests.
+
+Also test invalid situations.
+
+## Invalid Rating
+
+```json
+{
+  "shop": "SHOP_ID",
+  "rating": 7,
+  "comment": "Test"
+}
+```
+
+Expected:
+
+```json
+{
+  "message": "Rating must be between 1 and 5"
+}
+```
+
+---
+
+## Invalid Shop
+
+```json
+{
+  "shop": "INVALID_SHOP_ID",
+  "rating": 5,
+  "comment": "Test"
+}
+```
+
+Expected:
+
+```json
+{
+  "message": "Shop not found"
+}
+```
+
+---
+
+## Product From Different Shop
+
+```json
+{
+  "shop": "SHOP_A",
+  "product": "PRODUCT_FROM_SHOP_B",
+  "rating": 5,
+  "comment": "Test"
+}
+```
+
+Expected:
+
+```json
+{
+  "message": "Product not found in this shop"
+}
+```
+
+---
+
+## Unauthorized Request
+
+Call:
+
+```text
+POST /api/reviews
+```
+
+without a JWT.
+
+Expected:
+
+```text
+401 Unauthorized
+```
+
+The exact response depends on your existing authentication middleware.
+
+---
+
+# 21. FRONTEND CONNECTION
+
+Once Postman works, React uses exactly the same API.
+
+Example:
+
+```text
+React
+  |
+  | fetch / axios
+  v
+POST /api/reviews
+  |
+  v
+Express
+  |
+  v
+Review Controller
+  |
+  v
+MongoDB
+```
+
+The frontend does NOT directly access MongoDB.
+
+---
+
+# 22. FRONTEND — CREATE REVIEW
+
+Example using `fetch()`:
+
+```js
+const createReview = async (shopId, productId, rating, comment, token) => {
+  const response = await fetch(
+    "http://localhost:5000/api/reviews",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+
+      body: JSON.stringify({
+        shop: shopId,
+        product: productId,
+        rating,
+        comment,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  return data;
+};
+```
+
+Usage:
+
+```js
+const result = await createReview(
+  shopId,
+  productId,
+  5,
+  "Amazing food!",
+  token
+);
+
+console.log(result);
+```
+
+---
+
+# 23. FRONTEND — GET PRODUCT REVIEWS
+
+```js
+const getProductReviews = async (productId) => {
+  const response = await fetch(
+    `http://localhost:5000/api/reviews/product/${productId}`
+  );
+
+  const data = await response.json();
+
+  return data;
+};
+```
+
+Usage:
+
+```js
+const data = await getProductReviews(productId);
+
+console.log(data.reviews);
+```
+
+React can then display:
+
+```text
+★★★★★ 5
+Amazing food!
+
+★★★★☆ 4
+Good taste.
+
+★★★★★ 5
+Really delicious!
+```
+
+---
+
+# 24. FRONTEND — GET SHOP REVIEWS
+
+```js
+const getShopReviews = async (shopId) => {
+  const response = await fetch(
+    `http://localhost:5000/api/reviews/shop/${shopId}`
+  );
+
+  const data = await response.json();
+
+  return data;
+};
+```
+
+---
+
+# 25. FRONTEND — UPDATE REVIEW
+
+```js
+const updateReview = async (
+  reviewId,
+  rating,
+  comment,
+  token
+) => {
+  const response = await fetch(
+    `http://localhost:5000/api/reviews/${reviewId}`,
+    {
+      method: "PUT",
+
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+
+      body: JSON.stringify({
+        rating,
+        comment,
+      }),
+    }
+  );
+
+  return await response.json();
+};
+```
+
+---
+
+# 26. FRONTEND — DELETE REVIEW
+
+```js
+const deleteReview = async (reviewId, token) => {
+  const response = await fetch(
+    `http://localhost:5000/api/reviews/${reviewId}`,
+    {
+      method: "DELETE",
+
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return await response.json();
+};
+```
+
+---
+
+# 27. FRONTEND REVIEW FORM FLOW
+
+```text
+Customer opens Product
+        |
+        v
+Product details page
+        |
+        v
+"Write a Review"
+        |
+        v
+Select Rating
+        |
+        v
+Enter Comment
+        |
+        v
+Click Submit
+        |
+        v
+POST /api/reviews
+        |
+        v
+Backend verifies JWT
+        |
+        v
+Backend verifies Shop
+        |
+        v
+Backend verifies Product
+        |
+        v
+Review saved
+        |
+        v
+Frontend refreshes reviews
+```
+
+---
+
+# 28. FRONTEND DATA FLOW
+
+For a Product page:
+
+```text
+Product Page
+     |
+     +---- Product API
+     |
+     +---- Review API
+              |
+              v
+GET /api/reviews/product/:productId
+              |
+              v
+        Review list
+```
+
+For a Shop page:
+
+```text
+Shop Page
+    |
+    +---- Shop API
+    |
+    +---- Review API
+             |
+             v
+GET /api/reviews/shop/:shopId
+             |
+             v
+       Review list
+```
+
+---
+
+# 29. AUTHENTICATION FLOW
+
+The frontend stores the JWT according to the project's existing
+authentication implementation.
+
+When creating, updating, or deleting a review:
+
+```text
+Frontend
+   |
+   | Authorization: Bearer JWT
+   v
+authMiddleware
+   |
+   | verifies token
+   v
+req.user.id
+   |
+   v
+reviewController
+```
+
+The Review controller should never trust:
+
+```json
+{
+  "user": "some-user-id"
+}
+```
+
+from the frontend.
+
+Instead:
+
+```js
+user: req.user.id
+```
+
+must be used.
+
+---
+
+# 30. REVIEW OWNERSHIP
+
+Suppose User A creates:
+
+```text
+Review A
+   |
+   +---- user = User A
+```
+
+User B cannot modify it.
+
+The controller checks:
+
+```js
+const review = await Review.findOne({
+  _id: reviewId,
+  user: req.user.id,
+});
+```
+
+Therefore:
+
+```text
+User A -> Update Review A ✅
+User B -> Update Review A ❌
+```
+
+The same rule applies to deletion.
+
+---
+
+# 31. RATING ARCHITECTURE
+
+Reviews remain the source of truth.
+
+Example:
+
+```text
+Product A
+
+Review 1 = 5
+Review 2 = 4
+Review 3 = 5
+```
+
+Average:
+
+```text
+(5 + 4 + 5) / 3 = 4.67
+```
+
+Shop rating is calculated separately from Shop reviews.
+
+```text
+Shop A
+
+Review 1 = 4
+Review 2 = 5
+Review 3 = 4
+
+Average = 4.33
+```
+
+Product reviews should NOT directly modify the Shop rating.
+
+Later, cached fields such as:
+
+```text
+rating
+reviewCount
+```
+
+can be added to Shop/Product for faster frontend responses.
+
+---
+
+# 32. COMPLETE REVIEW ARCHITECTURE
+
+```text
+                        CUSTOMER
+                            |
+                            v
+                      React Frontend
+                            |
+                            |
+                      HTTP Request
+                            |
+                            v
+                    +---------------+
+                    | Review Routes |
+                    +-------+-------+
+                            |
+                            v
+                 +---------------------+
+                 | Review Controller   |
+                 +----------+----------+
+                            |
+            +---------------+---------------+
+            |               |               |
+            v               v               v
+          User            Shop           Product
+            \               |              /
+             \              |             /
+              +-------------+------------+
+                            |
+                            v
+                     Review Model
+                            |
+                            v
+                         MongoDB
+```
+
+---
+
+# 33. FINAL API CHECKLIST
+
+Before connecting React, confirm these work in Postman:
+
+```text
+[ ] POST   /api/reviews
+[ ] GET    /api/reviews/shop/:shopId
+[ ] GET    /api/reviews/product/:productId
+[ ] PUT    /api/reviews/:reviewId
+[ ] DELETE /api/reviews/:reviewId
+
+[ ] JWT authentication works
+[ ] User ID comes from JWT
+[ ] Shop validation works
+[ ] Product validation works
+[ ] Product-Shop relationship validation works
+[ ] Rating 1-5 validation works
+[ ] Duplicate product review is rejected
+[ ] User cannot edit another user's review
+[ ] User cannot delete another user's review
+```
+
+---
+
+# 34. DEVELOPMENT STRATEGY
+
+Follow this order:
+
+```text
+Step 1
+Create Review-model.js
+        ↓
+Step 2
+Create reviewController.js
+        ↓
+Step 3
+Create reviewRoutes.js
+        ↓
+Step 4
+Register routes in server.js
+        ↓
+Step 5
+Start backend
+        ↓
+Step 6
+Test every endpoint in Postman
+        ↓
+Step 7
+Fix backend/API issues
+        ↓
+Step 8
+Connect React frontend
+        ↓
+Step 9
+Build Review UI
+        ↓
+Step 10
+Add rating summary/cache later
+```
+
+The important principle is:
+
+```text
+POSTMAN SUCCESS
+       ↓
+API READY
+       ↓
+FRONTEND INTEGRATION
+```
+
+The frontend should consume the API; it should not contain the database
+business logic.
+
+# END OF REVIEW MODULE DOCUMENTATION

@@ -7,17 +7,18 @@ const otpSchema = new mongoose.Schema(
             required: true,
             lowercase: true,
             trim: true,
-            unique: true, // Only one active OTP per email
+            unique: true,
         },
 
         otp: {
             type: String,
-            required: true, // Store hashed OTP
+            required: true,
         },
 
-        verified: {
-            type: Boolean,
-            default: false,
+        purpose: {
+            type: String,
+            enum: ["register", "login"],
+            required: true,
         },
 
         attempts: {
@@ -39,7 +40,7 @@ const otpSchema = new mongoose.Schema(
         expiresAt: {
             type: Date,
             required: true,
-            index: { expires: 0 }, // MongoDB automatically deletes expired documents
+            index: { expires: 0 },
         },
 
         ipAddress: {

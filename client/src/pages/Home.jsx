@@ -4,7 +4,6 @@
 // rendered globally (e.g. in App.jsx), so they are NOT included here.
 
 import { homeData } from "../data/homeData";
-import Navbar from "../components/navbar";
 
 import HeroSection from "../components/home/HeroSection";
 import NearbyRestaurants from "../components/home/NearbyRestaurants";
@@ -24,9 +23,7 @@ const Home = () => {
 
   return (
     <main>
-      <nav>
-        <Navbar />
-      </nav>
+      
       <HeroSection hero={homeData.hero} />
       <NearbyRestaurants restaurants={homeData.nearbyRestaurants} />
       <FoodCategories

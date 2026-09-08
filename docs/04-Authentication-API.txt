@@ -304,3 +304,5 @@ OWNER OTP MODEL
 Owner → OwnerEmailOtp-model → Owner OTP
 
 The Owner authentication system uses a separate Owner model and separate OwnerEmailOtp model.
+
+===========================================================================================

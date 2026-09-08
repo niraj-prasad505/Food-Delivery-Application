@@ -5,6 +5,10 @@ const cookieParser = require("cookie-parser");
 
 const connectDB = require("./config/db");
 const userRouter = require("./routes/userRouter");
+const ownerRouter = require("./routes/ownerRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+
+
 
 const app = express();
 
@@ -27,6 +31,10 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/users", userRouter);
+
+app.use("/api/owners", ownerRouter);
+
+app.use("/api/reviews", reviewRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

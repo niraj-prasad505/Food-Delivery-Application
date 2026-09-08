@@ -136,3 +136,171 @@ Password Login: /login
 OTP Login: /create-login-otp → /login-otp
 
 Password Reset: /forgot-password → /reset-password/:token
+
+
+
+
+
+
+
+Food Delivery Application – Owner Authentication API
+
+Base URL: [http://localhost:5000/api/owners](http://localhost:5000/api/owners)
+
+Routes
+
+POST /create-otp
+
+Working: Generates a 6-digit registration OTP, hashes it, stores it with purpose "register", and sends it by email.
+
+Body:
+{"email":"[owner@gmail.com](mailto:owner@gmail.com)"}
+
+---
+
+POST /register
+
+Working: Verifies the registration OTP, hashes the password, creates the Owner, marks the Owner as verified, and deletes the OTP.
+
+Body:
+{"name":"Test Owner","email":"[owner@gmail.com](mailto:owner@gmail.com)","otp":"123456","password":"Owner@12345","confirmPassword":"Owner@12345"}
+
+---
+
+POST /login
+
+Working: Logs in the Owner with email and password, creates a JWT, and stores it in an HTTP-only cookie.
+
+Body:
+{"email":"[owner@gmail.com](mailto:owner@gmail.com)","password":"Owner@12345"}
+
+---
+
+POST /create-login-otp
+
+Working: Checks that the Owner exists, generates a login OTP, stores it with purpose "login", and sends it by email.
+
+Body:
+{"email":"[owner@gmail.com](mailto:owner@gmail.com)"}
+
+---
+
+POST /login-otp
+
+Working: Verifies the Owner login OTP, creates a JWT, stores it in an HTTP-only cookie, and deletes the used OTP.
+
+Body:
+{"email":"[owner@gmail.com](mailto:owner@gmail.com)","otp":"123456"}
+
+---
+
+POST /logout
+
+Working: Clears the Owner authentication cookie and logs the Owner out.
+
+Body: No body
+
+---
+
+GET /me
+
+Working: Returns the currently authenticated Owner. Requires the Owner authentication middleware and JWT cookie.
+
+Body: No body
+
+---
+
+POST /forgot-password
+
+Working: Creates an Owner password-reset token, saves its expiry, and sends a reset link by email.
+
+Body:
+{"email":"[owner@gmail.com](mailto:owner@gmail.com)"}
+
+---
+
+POST /reset-password/:token
+
+Working: Validates the Owner reset token, hashes the new password, updates the Owner password, and removes the reset token.
+
+Body:
+{"password":"NewOwner@12345","confirmPassword":"NewOwner@12345"}
+
+===========================================================================================
+
+REQUIRED DEPENDENCIES
+
+express – API/server
+
+mongoose – MongoDB
+
+bcrypt – Password and OTP hashing
+
+jsonwebtoken – JWT authentication
+
+cookie-parser – Cookies
+
+dotenv – Environment variables
+
+nodemailer – Email sending
+
+===========================================================================================
+
+ENVIRONMENT VARIABLES
+
+PORT – Server port
+
+MONGO_URI – MongoDB connection string
+
+JWT_SECRET – Secret used to sign JWTs
+
+CLIENT_URL – Frontend URL used for password-reset links
+
+Email variables required by sendEmail.js – Used to send OTP and password-reset emails
+
+===========================================================================================
+
+EMAIL VARIABLES
+
+EMAIL_USER=[your_email@gmail.com](mailto:your_email@gmail.com)
+
+EMAIL_PASSWORD=your_gmail_app_password
+
+EMAIL_USER → Gmail account used to send emails.
+
+EMAIL_PASSWORD → Gmail App Password, not the normal Gmail password.
+
+Used for:
+
+Registration OTP
+
+Login OTP
+
+Password reset emails
+
+===========================================================================================
+
+OWNER AUTHENTICATION FLOW
+
+Owner Registration:
+/create-otp → /register
+
+Owner Password Login:
+/login
+
+Owner OTP Login:
+/create-login-otp → /login-otp
+
+Owner Password Reset:
+/forgot-password → /reset-password/:token
+
+Owner Authentication:
+JWT → HTTP-only cookie → authMiddleware → /me
+
+===========================================================================================
+
+OWNER OTP MODEL
+
+Owner → OwnerEmailOtp-model → Owner OTP
+
+The Owner authentication system uses a separate Owner model and separate OwnerEmailOtp model.

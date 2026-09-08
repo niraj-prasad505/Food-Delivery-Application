@@ -1,15 +1,15 @@
-const User = require("../models/User-model");
-const EmailOtp = require("../models/EmailOtp-model");
+const Owner = require("../models/Owner-model");
+const OwnerEmailOtp = require("../models/OwnerEmailOtp-model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
-const UserPreference = require("../models/UserPreference-model");
+
 
 // Register
 const register = async (req, res) => {
   try {
     const {
-      fullname,
+      name,
       email,
       otp,
       password,
@@ -17,7 +17,7 @@ const register = async (req, res) => {
     } = req.body;
 
     if (
-      !fullname ||
+      !name ||
       !email ||
       !otp ||
       !password ||
@@ -36,19 +36,19 @@ const register = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
+    // Check if owner already exists
+    const existingOwner = await Owner.findOne({
       email: normalizedEmail
     });
 
-    if (existingUser) {
+    if (existingOwner) {
       return res.status(400).json({
-        message: "User already exists"
+        message: "Owner already exists"
       });
     }
 
-    // Find OTP record
-    const otpRecord = await EmailOtp.findOne({
+    // Find registration OTP
+    const otpRecord = await OwnerEmailOtp.findOne({
       email: normalizedEmail,
       purpose: "register"
     });
@@ -59,7 +59,18 @@ const register = async (req, res) => {
       });
     }
 
-    // Compare entered OTP with hashed OTP
+    // Check OTP attempts
+    if (otpRecord.attempts >= 4) {
+      await OwnerEmailOtp.deleteOne({
+        _id: otpRecord._id
+      });
+
+      return res.status(429).json({
+        message: "Too many attempts. Please request a new OTP"
+      });
+    }
+
+    // Verify OTP
     const isOtpValid = await bcrypt.compare(
       otp,
       otpRecord.otp
@@ -75,32 +86,34 @@ const register = async (req, res) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
 
-    // Create user
-    const newUser = await User.create({
-      fullname: fullname.trim(),
+    // Create owner
+    const newOwner = await Owner.create({
+      name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
-      role: "user"
+      isVerified: true,
+      isActive: true
     });
 
-    // Create user preferences
-    await UserPreference.create({
-      user: newUser._id
-    });
-
-    // OTP is no longer needed
-    await EmailOtp.deleteOne({
+    // Delete used OTP
+    await OwnerEmailOtp.deleteOne({
       _id: otpRecord._id
     });
 
     return res.status(201).json({
-      message: "User created successfully",
-      user: {
-        _id: newUser._id,
-        fullname: newUser.fullname,
-        email: newUser.email
+      message: "Owner created successfully",
+      owner: {
+        _id: newOwner._id,
+        name: newOwner.name,
+        email: newOwner.email,
+        phone: newOwner.phone,
+        isVerified: newOwner.isVerified,
+        isActive: newOwner.isActive
       }
     });
 
@@ -111,6 +124,7 @@ const register = async (req, res) => {
   }
 };
 
+// Create OTP for registration
 const createOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -123,32 +137,52 @@ const createOtp = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Hash OTP before storing
-    const hashedOtp = await bcrypt.hash(otp, 10);
-
-    // Remove previous OTP for this email
-    await EmailOtp.deleteOne({
+    // Check if owner already exists
+    const existingOwner = await Owner.findOne({
       email: normalizedEmail
     });
 
-    // Create new OTP
-    await EmailOtp.create({
+    if (existingOwner) {
+      return res.status(400).json({
+        message: "Owner already exists"
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    // Hash OTP
+    const hashedOtp = await bcrypt.hash(
+      otp,
+      10
+    );
+
+    // Remove previous owner registration OTP
+    await OwnerEmailOtp.deleteOne({
+      email: normalizedEmail,
+      purpose: "register"
+    });
+
+    // Save OTP
+    await OwnerEmailOtp.create({
       email: normalizedEmail,
       otp: hashedOtp,
       purpose: "register",
       attempts: 0,
       otpSentCount: 1,
       lastSentAt: new Date(),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + 5 * 60 * 1000
+      ),
       ipAddress: req.ip
     });
 
+    // Send OTP
     await sendEmail({
       email: normalizedEmail,
-      subject: "Your OTP for Registration",
+      subject: "Your OTP for Owner Registration",
       message: `Your OTP is ${otp}. It will expire in 5 minutes.`
     });
 
@@ -163,7 +197,6 @@ const createOtp = async (req, res) => {
   }
 };
 
-
 // Login
 const login = async (req, res) => {
   try {
@@ -175,15 +208,28 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (!user) {
+    const owner = await Owner.findOne({
+      email: normalizedEmail
+    });
+
+    if (!owner) {
       return res.status(401).json({
         message: "Invalid credentials"
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    if (!owner.isActive) {
+      return res.status(403).json({
+        message: "Owner account is inactive"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(
+      password,
+      owner.password
+    );
 
     if (!isMatch) {
       return res.status(401).json({
@@ -193,8 +239,7 @@ const login = async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: user._id,
-        role: user.role
+        id: owner._id
       },
       process.env.JWT_SECRET,
       {
@@ -202,26 +247,28 @@ const login = async (req, res) => {
       }
     );
 
-    console.log("Generated JWT Token:", token);
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      path: "/"
+      path: "/",
+      maxAge: 24 * 60 * 60 * 1000
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Login successful",
-      user: {
-        _id: user._id,
-        fullname: user.fullname,
-        email: user.email,
-        picture: user.picture
+      owner: {
+        _id: owner._id,
+        name: owner.name,
+        email: owner.email,
+        phone: owner.phone,
+        isVerified: owner.isVerified,
+        isActive: owner.isActive
       }
     });
 
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message
     });
   }
@@ -239,20 +286,25 @@ const loginOtp = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check user
-    const user = await User.findOne({
+    const owner = await Owner.findOne({
       email: normalizedEmail
     });
 
-    if (!user) {
+    if (!owner) {
       return res.status(401).json({
         message: "Invalid credentials"
       });
     }
 
-    // Find OTP
-    const otpRecord = await EmailOtp.findOne({
-      email: normalizedEmail
+    if (!owner.isActive) {
+      return res.status(403).json({
+        message: "Owner account is inactive"
+      });
+    }
+
+    const otpRecord = await OwnerEmailOtp.findOne({
+      email: normalizedEmail,
+      purpose: "login"
     });
 
     if (!otpRecord) {
@@ -261,9 +313,8 @@ const loginOtp = async (req, res) => {
       });
     }
 
-    // Check OTP attempts
     if (otpRecord.attempts >= 4) {
-      await EmailOtp.deleteOne({
+      await OwnerEmailOtp.deleteOne({
         _id: otpRecord._id
       });
 
@@ -272,7 +323,6 @@ const loginOtp = async (req, res) => {
       });
     }
 
-    // Compare entered OTP with hashed OTP
     const isOtpValid = await bcrypt.compare(
       otp,
       otpRecord.otp
@@ -287,11 +337,9 @@ const loginOtp = async (req, res) => {
       });
     }
 
-    // Create JWT
     const token = jwt.sign(
       {
-        id: user._id,
-        role: user.role
+        id: owner._id
       },
       process.env.JWT_SECRET,
       {
@@ -299,26 +347,27 @@ const loginOtp = async (req, res) => {
       }
     );
 
-    // Set cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      path: "/"
+      path: "/",
+      maxAge: 24 * 60 * 60 * 1000
     });
 
-    // Delete OTP after successful login
-    await EmailOtp.deleteOne({
+    await OwnerEmailOtp.deleteOne({
       _id: otpRecord._id
     });
 
     return res.status(200).json({
       message: "Login successful",
-      user: {
-        _id: user._id,
-        fullname: user.fullname,
-        email: user.email,
-        picture: user.picture
+      owner: {
+        _id: owner._id,
+        name: owner.name,
+        email: owner.email,
+        phone: owner.phone,
+        isVerified: owner.isVerified,
+        isActive: owner.isActive
       }
     });
 
@@ -328,6 +377,7 @@ const loginOtp = async (req, res) => {
     });
   }
 };
+
 const createLoginOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -340,46 +390,52 @@ const createLoginOtp = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if user exists
-    const user = await User.findOne({
+    const owner = await Owner.findOne({
       email: normalizedEmail
     });
 
-    if (!user) {
+    if (!owner) {
       return res.status(404).json({
-        message: "User not found"
+        message: "Owner not found"
       });
     }
 
-    // Generate 6-digit OTP
+    if (!owner.isActive) {
+      return res.status(403).json({
+        message: "Owner account is inactive"
+      });
+    }
+
     const otp = Math.floor(
       100000 + Math.random() * 900000
     ).toString();
 
-    // Hash OTP
-    const hashedOtp = await bcrypt.hash(otp, 10);
+    const hashedOtp = await bcrypt.hash(
+      otp,
+      10
+    );
 
-    // Remove previous OTP
-    await EmailOtp.deleteOne({
-      email: normalizedEmail
+    await OwnerEmailOtp.deleteOne({
+      email: normalizedEmail,
+      purpose: "login"
     });
 
-    // Create new OTP
-    await EmailOtp.create({
+    await OwnerEmailOtp.create({
       email: normalizedEmail,
       otp: hashedOtp,
       purpose: "login",
       attempts: 0,
       otpSentCount: 1,
       lastSentAt: new Date(),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + 5 * 60 * 1000
+      ),
       ipAddress: req.ip
     });
 
-    // Send OTP
     await sendEmail({
       email: normalizedEmail,
-      subject: "Your OTP for Login",
+      subject: "Your OTP for Owner Login",
       message: `Your OTP is ${otp}. It will expire in 5 minutes.`
     });
 
@@ -394,60 +450,54 @@ const createLoginOtp = async (req, res) => {
   }
 };
 
-
 // Logout
 const logout = (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/"
   });
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Logged out successfully"
   });
 };
 
-
-// Get current user
-const getCurrentUser = async (req, res) => {
+// Get current Owner
+const getCurrentOwner = async (req, res) => {
   try {
-    const token = req.cookies.token;
+    const owner = await Owner.findById(req.owner.id)
+  .select("-password -resetPasswordToken -resetPasswordExpires");
 
-    if (!token) {
+    if (!owner) {
       return res.status(401).json({
-        message: "Not authenticated"
+        success: false,
+        message: "Owner not found"
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
-
-    const user = await User.findById(decoded.id)
-      .select("-password");
-
-    if (!user) {
-      return res.status(401).json({
-        message: "User not found"
+    if (!owner.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "Owner account is inactive"
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      user
+      owner
     });
 
   } catch (error) {
-    res.status(401).json({
-      message: "Invalid or expired token"
+    console.log("GET CURRENT OWNER ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
     });
   }
 };
-
 
 // Forgot password
 const forgotPassword = async (req, res) => {
@@ -456,57 +506,76 @@ const forgotPassword = async (req, res) => {
 
     if (!email) {
       return res.status(400).json({
+        success: false,
         message: "Email is required"
       });
     }
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (!user) {
+    const owner = await Owner.findOne({
+      email: normalizedEmail
+    });
+
+    if (!owner) {
       return res.status(404).json({
-        message: "User not found"
+        success: false,
+        message: "Owner not found"
+      });
+    }
+
+    if (!owner.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "Owner account is inactive"
       });
     }
 
     const resetToken = jwt.sign(
-      { id: user._id },
+      {
+        id: owner._id
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      {
+        expiresIn: "1h"
+      }
     );
 
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000;
+    owner.resetPasswordToken = resetToken;
+    owner.resetPasswordExpires =
+      Date.now() + 60 * 60 * 1000;
+
+    await owner.save();
 
     console.log("Reset Token:", resetToken);
 
-    await user.save();
-
     const resetUrl =
-      `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+      `${process.env.CLIENT_URL}/owner/reset-password/${resetToken}`;
 
     await sendEmail({
-      email: user.email,
-      subject: "Password Reset",
+      email: owner.email,
+      subject: "Owner Password Reset",
       message: `
-                <h2>Password Reset Request</h2>
-                <p>Hello ${user.fullname},</p>
-                <p>Click the link below to reset your password:</p>
-                <a href="${resetUrl}">Reset Password</a>
-                <p>This link expires in 1 hour.</p>
-            `
+        <h2>Password Reset Request</h2>
+        <p>Hello ${owner.name},</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetUrl}">Reset Password</a>
+        <p>This link expires in 1 hour.</p>
+      `
     });
 
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       message: "Password reset email sent"
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: error.message
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
     });
   }
 };
-
 
 // Reset password
 const resetPassword = async (req, res) => {
@@ -514,58 +583,95 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password, confirmPassword } = req.body;
 
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Reset token is required"
+      });
+    }
+
     if (!password || !confirmPassword) {
       return res.status(400).json({
+        success: false,
         message: "All fields are required"
       });
     }
 
     if (password.length < 8) {
       return res.status(400).json({
+        success: false,
         message: "Password must be at least 8 characters"
       });
     }
 
     if (password !== confirmPassword) {
       return res.status(400).json({
+        success: false,
         message: "Passwords do not match"
       });
     }
 
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
-    });
+    // Verify reset token
+    let decoded;
 
-    if (!user) {
+    try {
+      decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET
+      );
+    } catch (error) {
       return res.status(400).json({
+        success: false,
         message: "Invalid or expired token"
       });
     }
 
-    user.password = await bcrypt.hash(password, 10);
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
+    // Find owner using token + expiry
+    const owner = await Owner.findOne({
+      _id: decoded.id,
+      resetPasswordToken: token,
+      resetPasswordExpires: {
+        $gt: Date.now()
+      }
+    });
 
-    await user.save();
+    if (!owner) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired token"
+      });
+    }
 
-    res.status(200).json({
+    // Hash new password
+    owner.password = await bcrypt.hash(
+      password,
+      10
+    );
+
+    // Invalidate reset token
+    owner.resetPasswordToken = null;
+    owner.resetPasswordExpires = null;
+
+    await owner.save();
+
+    return res.status(200).json({
+      success: true,
       message: "Password reset successful"
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: error.message
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
     });
   }
 };
-
 
 module.exports = {
   register,
   login,
   logout,
-  getCurrentUser,
+  getCurrentOwner,
   forgotPassword,
   resetPassword,
   createOtp,

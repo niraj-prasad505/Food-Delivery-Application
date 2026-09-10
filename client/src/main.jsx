@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 
 import App from "./App";
 import { UserProvider } from "./context/UserContext";
+import { LocationProvider } from "./context/LocationContext";
 
 import "./index.css";
 
@@ -11,7 +12,9 @@ ReactDOM.createRoot(
 ).render(
   <React.StrictMode>
     <UserProvider>
-      <App />
+      <LocationProvider>
+        <App />
+      </LocationProvider>
     </UserProvider>
   </React.StrictMode>
 );

@@ -21,24 +21,47 @@ const Home = () => {
   // useEffect(() => { fetch("/api/home").then(r => r.json()).then(setHomeData); }, []);
   // The components below will keep working unchanged either way.
 
+  if (!homeData) return <div>Loading...</div>;
+
   return (
-    <main>
+    <main className="space-y-10">
       
+      {/* Hero Banner */}
       <HeroSection hero={homeData.hero} />
-      <NearbyRestaurants restaurants={homeData.nearbyRestaurants} />
+
+      {/* Nearby Restaurants */}
+      <NearbyRestaurants 
+        restaurants={homeData.nearbyRestaurants || []} 
+      />
+
+      {/* Food Categories */}
       <FoodCategories
-        categories={homeData.foodCategories}
-        filters={homeData.categoryFilters}
+        categories={homeData.foodCategories || []}
+        filters={homeData.categoryFilters || []}
       />
+
+      {/* Popular Restaurants */}
       <PopularRestaurants
-        restaurants={homeData.popularRestaurants}
-        filters={homeData.popularRestaurantFilters}
+        restaurants={homeData.popularRestaurants || []}
+        filters={homeData.popularRestaurantFilters || []}
       />
-      <AdvertisementSlider advertisements={homeData.advertisements} />
-      <OffersSection offers={homeData.offers} />
-      <OrderingSteps steps={homeData.orderingSteps} />
+
+      {/* Ads */}
+      <AdvertisementSlider 
+        advertisements={homeData.advertisements || []} 
+      />
+
+      {/* Offers */}
+      <OffersSection offers={homeData.offers || []} />
+
+      {/* How it works */}
+      <OrderingSteps steps={homeData.orderingSteps || []} />
+
+      {/* Service features */}
       <ServiceBanner service={homeData.serviceFeatures} />
-      <FoodTips tips={homeData.tips} />
+
+      {/* Tips */}
+      <FoodTips tips={homeData.tips || []} />
     </main>
   );
 };

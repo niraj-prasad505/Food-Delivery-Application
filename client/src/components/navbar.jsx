@@ -1,5 +1,12 @@
-import React, { useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LocationContext } from "../context/LocationContext";
+import LocationModal from "./LocationModal";
+const [showLocationBox, setShowLocationBox] = useState(false);
+const [searchInput, setSearchInput] = useState("");
+const [recentLocations, setRecentLocations] = useState([]);
+import { FakeLocation } from "../extras/FakeLocation"
+
 import {
   MapPin,
   ChevronDown,
@@ -13,192 +20,165 @@ import {
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useLocation();
 
-  const [showAddress, setShowAddress] = useState(false);
+  const { location } = useContext(LocationContext);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
-
-  // Temporary data
-  const [address, setAddress] = useState("Amborkhana, Sylhet");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const cartCount = 2;
-  const wishlistCount = 3;
+  const cartCount = 1;
+  const wishlistCount = 1;
 
-  const addresses = [
-    "Amborkhana, Sylhet",
-    "Zindabazar, Sylhet",
-    "Shibganj, Sylhet",
-  ];
+  const filteredLocations = locations.filter((item) =>
+    item.toLowerCase().includes(searchInput.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (location) {
+      const updated = [location, ...recentLocations.filter(l => l !== location)].slice(0, 3);
+      setRecentLocations(updated);
+      localStorage.setItem("recentLocations", JSON.stringify(updated));
+    }
+  }, [location]);
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setShowAccount(false);
     navigate("/");
   };
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("recentLocations")) || [];
+    setRecentLocations(saved);
+  }, []);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => routerLocation.pathname === path;
 
   return (
     <header className="sticky top-0 z-50 bg-white px-4 py-4 md:px-8">
-      <div
-        className="
-          mx-auto flex h-[68px] max-w-7xl items-center
-          gap-3 rounded-full bg-white px-5
-          shadow-[0_5px_25px_rgba(0,0,0,0.07)]
-        "
-      >
-        {/* ================= LOGO ================= */}
-        <Link
-          to="/"
-          className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]"
-        >
+      <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-3 rounded-full bg-white px-5 shadow-[0_5px_25px_rgba(0,0,0,0.07)]">
+
+        {/* LOGO */}
+        <Link to="/" className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]">
           Food<span className="text-[#ff8a65]">Ex</span>
         </Link>
 
-        {/* ================= ADDRESS ================= */}
+        {/* LOCATION BUTTON */}
+        {/* LOCATION BUTTON + SEARCH DROPDOWN */}
         <div className="relative hidden md:block">
           <button
             onClick={() => {
-              setShowAddress(!showAddress);
+              setShowLocationBox(!showLocationBox);
               setShowAccount(false);
             }}
-            className="
-              flex h-10 items-center gap-2 rounded-full
-              bg-gray-50 px-4 text-xs text-gray-600
-              transition hover:bg-gray-100
-            "
+            className="flex h-10 items-center gap-2 rounded-full bg-gray-50 px-4 text-xs text-gray-600 transition hover:bg-gray-100"
           >
             <MapPin size={15} />
 
-            <span className="max-w-[130px] truncate">
-              {address}
+            <span className="max-w-[130px] truncate" title={location}>
+              {location || "Enter delivery address"}
             </span>
 
-            <ChevronDown
-              size={14}
-              className={`transition-transform ${
-                showAddress ? "rotate-180" : ""
-              }`}
-            />
+            <ChevronDown size={14} />
           </button>
 
-          {/* Address Dropdown */}
-          {showAddress && (
-            <div
-              className="
-                absolute left-0 top-12 w-64 rounded-2xl
-                border border-gray-100 bg-white p-3
-                shadow-xl
-              "
-            >
-              <p className="mb-2 px-2 text-xs font-medium text-gray-400">
-                Choose your location
-              </p>
+          {/* DROPDOWN SEARCH BOX */}
+          {showLocationBox && (
+            <div className="absolute mt-2 w-80 rounded-xl border bg-white p-3 shadow-lg z-50">
 
-              {addresses.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => {
-                    setAddress(item);
-                    setShowAddress(false);
-                  }}
-                  className="
-                    flex w-full items-center gap-2 rounded-xl
-                    px-3 py-2.5 text-left text-sm text-gray-600
-                    transition hover:bg-orange-50 hover:text-[#ff6840]
-                  "
-                >
-                  <MapPin size={15} />
-                  {item}
-                </button>
-              ))}
+              {/* INPUT */}
+              <input
+                type="text"
+                placeholder="Search your location..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-400"
+              />
 
-              <button
-                onClick={() => {
-                  setShowAddress(false);
-                  navigate("/address");
-                }}
-                className="
-                  mt-1 w-full rounded-xl px-3 py-2.5
-                  text-left text-sm font-semibold
-                  text-[#ff6840] hover:bg-orange-50
-                "
-              >
-                + Add new address
-              </button>
+              {/* SUGGESTIONS */}
+              <div className="mt-2 max-h-40 overflow-y-auto">
+                {filteredLocations.length > 0 ? (
+                  filteredLocations.map((item, index) => (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        setLocation(item);
+                        setShowLocationBox(false);
+                        setSearchInput("");
+                      }}
+                      className="cursor-pointer rounded-md px-3 py-2 text-sm hover:bg-orange-50"
+                    >
+                      {item}
+                    </div>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-xs text-gray-400">
+                    No results found
+                  </p>
+                )}
+              </div>
+
+              {/* RECENT */}
+              {recentLocations.length > 0 && (
+                <div className="mt-3">
+                  <p className="px-2 text-xs text-gray-400">Recent</p>
+                  {recentLocations.map((item, index) => (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        setLocation(item);
+                        setShowLocationBox(false);
+                      }}
+                      className="cursor-pointer px-3 py-2 text-sm hover:bg-gray-100"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* ================= NAVIGATION ================= */}
+        {/* NAV LINKS */}
         <nav className="ml-auto hidden items-center gap-1 lg:flex">
           <Link
             to="/"
-            className={`
-              rounded-full px-4 py-2.5 text-sm transition
-              ${
-                isActive("/")
-                  ? "bg-gray-100 font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50"
-              }
-            `}
+            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/") ? "bg-gray-100 font-semibold" : "text-gray-600 hover:bg-gray-50"
+              }`}
           >
             Home
           </Link>
 
           <Link
             to="/foods"
-            className={`
-              rounded-full px-4 py-2.5 text-sm transition
-              ${
-                isActive("/foods")
-                  ? "bg-gray-100 font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50"
-              }
-            `}
+            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/foods") ? "bg-gray-100 font-semibold" : "text-gray-600 hover:bg-gray-50"
+              }`}
           >
             Explore Foods
           </Link>
 
           <Link
             to="/restaurants"
-            className={`
-              rounded-full px-4 py-2.5 text-sm transition
-              ${
-                isActive("/restaurants")
-                  ? "bg-gray-100 font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50"
-              }
-            `}
+            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/restaurants") ? "bg-gray-100 font-semibold" : "text-gray-600 hover:bg-gray-50"
+              }`}
           >
             Restaurants
           </Link>
         </nav>
 
-        {/* ================= RIGHT SIDE ================= */}
+        {/* RIGHT SIDE */}
         <div className="ml-auto flex items-center gap-1.5 lg:ml-3">
 
           {/* Wishlist */}
           <button
             onClick={() => navigate("/wishlist")}
-            className="
-              relative flex h-10 w-10 items-center justify-center
-              rounded-full text-gray-500 transition
-              hover:bg-orange-50 hover:text-[#ff6840]
-            "
-            title="Wishlist"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-orange-50 hover:text-[#ff6840]"
           >
             <Heart size={19} />
-
             {wishlistCount > 0 && (
-              <span
-                className="
-                  absolute right-0.5 top-0.5 flex h-4 min-w-4
-                  items-center justify-center rounded-full
-                  bg-[#ff6840] px-1 text-[9px] font-bold text-white
-                "
-              >
+              <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff6840] px-1 text-[9px] text-white">
                 {wishlistCount}
               </span>
             )}
@@ -207,128 +187,49 @@ const Navbar = () => {
           {/* Cart */}
           <button
             onClick={() => navigate("/cart")}
-            className="
-              relative flex h-10 w-10 items-center justify-center
-              rounded-full text-gray-500 transition
-              hover:bg-orange-50 hover:text-[#ff6840]
-            "
-            title="Cart"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-orange-50 hover:text-[#ff6840]"
           >
             <ShoppingCart size={19} />
-
             {cartCount > 0 && (
-              <span
-                className="
-                  absolute right-0.5 top-0.5 flex h-4 min-w-4
-                  items-center justify-center rounded-full
-                  bg-[#ff6840] px-1 text-[9px] font-bold text-white
-                "
-              >
+              <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff6840] px-1 text-[9px] text-white">
                 {cartCount}
               </span>
             )}
           </button>
 
-          {/* ================= ACCOUNT ================= */}
+          {/* ACCOUNT */}
           <div className="relative">
             <button
               onClick={() => {
                 setShowAccount(!showAccount);
-                setShowAddress(false);
               }}
-              className="
-                flex h-10 items-center gap-1.5 rounded-full
-                px-2 text-gray-600 transition hover:bg-gray-50
-              "
+              className="flex h-10 items-center gap-1.5 rounded-full px-2 text-gray-600 hover:bg-gray-50"
             >
               <User size={18} />
-
-              <span className="hidden text-sm sm:block">
-                Account
-              </span>
-
-              <ChevronDown
-                size={13}
-                className={`transition-transform ${
-                  showAccount ? "rotate-180" : ""
-                }`}
-              />
+              <span className="hidden text-sm sm:block">Account</span>
+              <ChevronDown size={13} />
             </button>
 
-            {/* Account Dropdown */}
             {showAccount && (
-              <div
-                className="
-                  absolute right-0 top-12 w-52 rounded-2xl
-                  border border-gray-100 bg-white p-2
-                  shadow-xl
-                "
-              >
+              <div className="absolute right-0 top-12 w-52 rounded-2xl border bg-white p-2 shadow-xl">
                 {isLoggedIn ? (
                   <>
-                    <button
-                      onClick={() => {
-                        setShowAccount(false);
-                        navigate("/profile");
-                      }}
-                      className="
-                        flex w-full items-center gap-3 rounded-xl
-                        px-3 py-2.5 text-sm text-gray-600
-                        hover:bg-gray-50
-                      "
-                    >
-                      <UserCircle size={17} />
+                    <button onClick={() => navigate("/profile")} className="block w-full text-left px-3 py-2">
                       My Profile
                     </button>
-
-                    <button
-                      onClick={() => {
-                        setShowAccount(false);
-                        navigate("/orders");
-                      }}
-                      className="
-                        flex w-full items-center gap-3 rounded-xl
-                        px-3 py-2.5 text-sm text-gray-600
-                        hover:bg-gray-50
-                      "
-                    >
-                      <Package size={17} />
+                    <button onClick={() => navigate("/orders")} className="block w-full text-left px-3 py-2">
                       My Orders
                     </button>
-
-                    <button
-                      onClick={handleLogout}
-                      className="
-                        flex w-full items-center gap-3 rounded-xl
-                        px-3 py-2.5 text-sm text-red-500
-                        hover:bg-red-50
-                      "
-                    >
-                      <LogOut size={17} />
+                    <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-red-500">
                       Logout
                     </button>
                   </>
                 ) : (
                   <>
-                    <button
-                      onClick={() => navigate("/login")}
-                      className="
-                        w-full rounded-xl px-3 py-2.5
-                        text-left text-sm text-gray-600
-                        hover:bg-gray-50
-                      "
-                    >
+                    <button onClick={() => navigate("/login")} className="block w-full text-left px-3 py-2">
                       Login
                     </button>
-
-                    <button
-                      onClick={() => navigate("/register")}
-                      className="
-                        w-full rounded-xl px-3 py-2.5
-                        text-left text-sm text-gray-600
-                        hover:bg-gray-50
-                      "
-                    >
+                    <button onClick={() => navigate("/register")} className="block w-full text-left px-3 py-2">
                       Create Account
                     </button>
                   </>
@@ -336,47 +237,14 @@ const Navbar = () => {
               </div>
             )}
           </div>
-
-          {/* Login */}
-          {!isLoggedIn && (
-            <button
-              onClick={() => navigate("/login")}
-              className="
-                hidden h-9 rounded-full bg-[#ff996f]
-                px-4 text-xs font-semibold text-white
-                transition hover:bg-[#ff8050] sm:block
-              "
-            >
-              Log in
-            </button>
-          )}
-
-          {/* Sign Up / Logout */}
-          {!isLoggedIn ? (
-            <button
-              onClick={() => navigate("/register")}
-              className="
-                hidden h-9 rounded-full bg-[#ff625d]
-                px-4 text-xs font-semibold text-white
-                transition hover:bg-[#f34d48] sm:block
-              "
-            >
-              Sign Up
-            </button>
-          ) : (
-            <button
-              onClick={handleLogout}
-              className="
-                hidden h-9 rounded-full bg-orange-50
-                px-4 text-xs font-semibold text-[#ff6840]
-                sm:block
-              "
-            >
-              Logout
-            </button>
-          )}
         </div>
       </div>
+
+      {/* LOCATION MODAL */}
+      <LocationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </header>
   );
 };

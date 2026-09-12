@@ -9,6 +9,8 @@ const userRouter = require("./routes/userRouter");
 const ownerRouter = require("./routes/ownerRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const ownershopRoutes = require("./routes/ownerShopRoutes");
+const cartRoutes = require("./routes/userCartRoutes");
+
 
 
 
@@ -45,6 +47,8 @@ app.use("/api/owners", ownerRouter);
 app.use("/api/reviews", reviewRoutes);
 
 app.use("/api/shops", ownershopRoutes);
+
+app.use("/api/cart", cartRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

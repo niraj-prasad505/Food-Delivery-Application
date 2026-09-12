@@ -104,14 +104,9 @@ const getCart = async (req, res) => {
     try {
         const cart = await Cart.findOne({
             user: req.user.id,
-            
         }).populate({
             path: "items.product",
-            select: "name images price discount category stock brand rating",
-            populate: {
-                path: "brand",
-                select: "name logo",
-            },
+            select: "name images price discount category stock rating",
         });
 
         if (!cart) {
@@ -128,7 +123,10 @@ const getCart = async (req, res) => {
             success: true,
             cart,
         });
+
     } catch (error) {
+        console.error("GET CART ERROR:", error);
+
         res.status(500).json({
             success: false,
             message: "Failed to get cart",
@@ -198,6 +196,11 @@ const updateCartItem = async (req, res) => {
         item.quantity = quantity;
 
         await cart.save();
+
+        await cart.populate({
+            path: "items.product",
+            select: "name images price discount category stock rating",
+        });
 
         res.status(200).json({
             success: true,

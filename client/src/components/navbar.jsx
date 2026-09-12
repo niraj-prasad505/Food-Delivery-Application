@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 import {
   MapPin,
   ChevronDown,
@@ -39,6 +40,18 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  const {
+    user,
+    loading,
+    isAuthenticated,
+    logout
+  } = useUser();
+
+  if (loading) {
+    return null;
+  }
+
+
   return (
     <header className="sticky top-0 z-50 bg-white px-4 py-4 md:px-8">
       <div
@@ -48,15 +61,15 @@ const Navbar = () => {
           shadow-[0_5px_25px_rgba(0,0,0,0.07)]
         "
       >
-        {/* ================= LOGO ================= */}
+        {/* LOGO*/}
         <Link
           to="/"
           className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]"
         >
-          Food<span className="text-[#ff8a65]">Ex</span>
+          Snack<span className="text-[#ff8a65]">Drop</span>
         </Link>
 
-        {/* ================= ADDRESS ================= */}
+        {/*ADDRESS*/}
         <div className="relative hidden md:block">
           <button
             onClick={() => {
@@ -77,9 +90,8 @@ const Navbar = () => {
 
             <ChevronDown
               size={14}
-              className={`transition-transform ${
-                showAddress ? "rotate-180" : ""
-              }`}
+              className={`transition-transform ${showAddress ? "rotate-180" : ""
+                }`}
             />
           </button>
 
@@ -131,16 +143,15 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* ================= NAVIGATION ================= */}
+        {/*NAVIGATION*/}
         <nav className="ml-auto hidden items-center gap-1 lg:flex">
           <Link
             to="/"
             className={`
               rounded-full px-4 py-2.5 text-sm transition
-              ${
-                isActive("/")
-                  ? "bg-gray-100 font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50"
+              ${isActive("/")
+                ? "bg-gray-100 font-semibold text-gray-900"
+                : "text-gray-600 hover:bg-gray-50"
               }
             `}
           >
@@ -151,10 +162,9 @@ const Navbar = () => {
             to="/explore"
             className={`
               rounded-full px-4 py-2.5 text-sm transition
-              ${
-                isActive("/explore")
-                  ? "bg-gray-100 font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50"
+              ${isActive("/explore")
+                ? "bg-gray-100 font-semibold text-gray-900"
+                : "text-gray-600 hover:bg-gray-50"
               }
             `}
           >
@@ -165,10 +175,9 @@ const Navbar = () => {
             to="/restaurants"
             className={`
               rounded-full px-4 py-2.5 text-sm transition
-              ${
-                isActive("/restaurants")
-                  ? "bg-gray-100 font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-50"
+              ${isActive("/restaurants")
+                ? "bg-gray-100 font-semibold text-gray-900"
+                : "text-gray-600 hover:bg-gray-50"
               }
             `}
           >
@@ -176,7 +185,7 @@ const Navbar = () => {
           </Link>
         </nav>
 
-        {/* ================= RIGHT SIDE ================= */}
+        {/* RIGHT SIDE */}
         <div className="ml-auto flex items-center gap-1.5 lg:ml-3">
 
           {/* Wishlist */}
@@ -229,7 +238,7 @@ const Navbar = () => {
             )}
           </button>
 
-          {/* ================= ACCOUNT ================= */}
+          {/* ACCOUNT  */}
           <div className="relative">
             <button
               onClick={() => {
@@ -244,14 +253,14 @@ const Navbar = () => {
               <User size={18} />
 
               <span className="hidden text-sm sm:block">
-                Account
+                {loading ? "..." : user ? user.fullname : "Account"}
               </span>
+
 
               <ChevronDown
                 size={13}
-                className={`transition-transform ${
-                  showAccount ? "rotate-180" : ""
-                }`}
+                className={`transition-transform ${showAccount ? "rotate-180" : ""
+                  }`}
               />
             </button>
 
@@ -264,7 +273,7 @@ const Navbar = () => {
                   shadow-xl
                 "
               >
-                {isLoggedIn ? (
+                {isAuthenticated ? (
                   <>
                     <button
                       onClick={() => {
@@ -297,7 +306,7 @@ const Navbar = () => {
                     </button>
 
                     <button
-                      onClick={handleLogout}
+                      onClick={logout}
                       className="
                         flex w-full items-center gap-3 rounded-xl
                         px-3 py-2.5 text-sm text-red-500
@@ -338,7 +347,7 @@ const Navbar = () => {
           </div>
 
           {/* Login */}
-          {!isLoggedIn && (
+          {!isAuthenticated && (
             <button
               onClick={() => navigate("/login")}
               className="
@@ -352,7 +361,7 @@ const Navbar = () => {
           )}
 
           {/* Sign Up / Logout */}
-          {!isLoggedIn ? (
+          {!isAuthenticated ? (
             <button
               onClick={() => navigate("/register")}
               className="
@@ -365,7 +374,7 @@ const Navbar = () => {
             </button>
           ) : (
             <button
-              onClick={handleLogout}
+              onClick={logout}
               className="
                 hidden h-9 rounded-full bg-orange-50
                 px-4 text-xs font-semibold text-[#ff6840]

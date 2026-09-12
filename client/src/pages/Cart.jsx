@@ -7,9 +7,11 @@ import {
 } from "../services/cartService";
 import gif from "../assets/shopping-cart.gif";
 
+
 export default function Cart() {
     const [cart, setCart] = useState({ items: [] });
     const [loading, setLoading] = useState(true);
+    
 
     // Get cart
     const loadCart = async () => {
@@ -33,7 +35,9 @@ export default function Cart() {
 
         try {
             const data = await updateCartItem(productId, quantity);
+            console.log("Updated cart:", data.cart);
             setCart(data.cart);
+
         } catch (error) {
             alert(
                 error.response?.data?.message ||

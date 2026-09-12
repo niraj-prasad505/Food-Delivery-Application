@@ -5,6 +5,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ShopListing from "./pages/ShopListing";
 import Navbar from "./components/navbar";
+import Cart from "./pages/Cart";
+import ExploreFoods from "./pages/ExploreFoods";
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
         <Route path="/restaurants" element={<ShopListing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/explore" element={<ExploreFoods />} />
       </Routes>
     </BrowserRouter>
   );

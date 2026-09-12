@@ -7,11 +7,15 @@ const {
     updateShop,
     updateShopLocation,
     deleteShop,
+    getAllShopsPublic, // <-- ADD THIS IMPORT
 } = require("../controllers/OwnerShop.controller");
 
 const ownerAuth = require("../middleware/owner-auth.middleware");
 
 const router = express.Router();
+
+// Public endpoint for customers/visitors
+router.get("/public", getAllShopsPublic);
 
 router.post("/", ownerAuth, createShop);
 

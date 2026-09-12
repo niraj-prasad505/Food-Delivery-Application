@@ -1,11 +1,7 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LocationContext } from "../context/LocationContext";
 import LocationModal from "./LocationModal";
-const [showLocationBox, setShowLocationBox] = useState(false);
-const [searchInput, setSearchInput] = useState("");
-const [recentLocations, setRecentLocations] = useState([]);
-import { FakeLocation } from "../extras/FakeLocation"
 
 import {
   MapPin,
@@ -13,17 +9,19 @@ import {
   Heart,
   ShoppingCart,
   User,
-  LogOut,
-  UserCircle,
-  Package,
 } from "lucide-react";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const routerLocation = useLocation();
 
-  const { location } = useContext(LocationContext);
+  // Retrieve location state & setter safely from context
+  const { location, setLocation } = useContext(LocationContext) || {};
 
+  // Component states (moved inside the functional component body)
+  const [showLocationBox, setShowLocationBox] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [recentLocations, setRecentLocations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -31,13 +29,31 @@ const Navbar = () => {
   const cartCount = 1;
   const wishlistCount = 1;
 
+  // Sample locations fallback for search suggestions
+  const locations = [
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Houston",
+    "Phoenix",
+    "Philadelphia",
+  ];
+
   const filteredLocations = locations.filter((item) =>
     item.toLowerCase().includes(searchInput.toLowerCase())
   );
 
   useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("recentLocations")) || [];
+    setRecentLocations(saved);
+  }, []);
+
+  useEffect(() => {
     if (location) {
-      const updated = [location, ...recentLocations.filter(l => l !== location)].slice(0, 3);
+      const updated = [
+        location,
+        ...recentLocations.filter((l) => l !== location),
+      ].slice(0, 3);
       setRecentLocations(updated);
       localStorage.setItem("recentLocations", JSON.stringify(updated));
     }
@@ -48,23 +64,20 @@ const Navbar = () => {
     setShowAccount(false);
     navigate("/");
   };
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("recentLocations")) || [];
-    setRecentLocations(saved);
-  }, []);
 
   const isActive = (path) => routerLocation.pathname === path;
 
   return (
     <header className="sticky top-0 z-50 bg-white px-4 py-4 md:px-8">
       <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-3 rounded-full bg-white px-5 shadow-[0_5px_25px_rgba(0,0,0,0.07)]">
-
         {/* LOGO */}
-        <Link to="/" className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]">
+        <Link
+          to="/"
+          className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]"
+        >
           Food<span className="text-[#ff8a65]">Ex</span>
         </Link>
 
-        {/* LOCATION BUTTON */}
         {/* LOCATION BUTTON + SEARCH DROPDOWN */}
         <div className="relative hidden md:block">
           <button
@@ -75,18 +88,15 @@ const Navbar = () => {
             className="flex h-10 items-center gap-2 rounded-full bg-gray-50 px-4 text-xs text-gray-600 transition hover:bg-gray-100"
           >
             <MapPin size={15} />
-
             <span className="max-w-[130px] truncate" title={location}>
               {location || "Enter delivery address"}
             </span>
-
             <ChevronDown size={14} />
           </button>
 
           {/* DROPDOWN SEARCH BOX */}
           {showLocationBox && (
-            <div className="absolute mt-2 w-80 rounded-xl border bg-white p-3 shadow-lg z-50">
-
+            <div className="absolute z-50 mt-2 w-80 rounded-xl border bg-white p-3 shadow-lg">
               {/* INPUT */}
               <input
                 type="text"
@@ -103,7 +113,7 @@ const Navbar = () => {
                     <div
                       key={index}
                       onClick={() => {
-                        setLocation(item);
+                        if (setLocation) setLocation(item);
                         setShowLocationBox(false);
                         setSearchInput("");
                       }}
@@ -127,7 +137,7 @@ const Navbar = () => {
                     <div
                       key={index}
                       onClick={() => {
-                        setLocation(item);
+                        if (setLocation) setLocation(item);
                         setShowLocationBox(false);
                       }}
                       className="cursor-pointer px-3 py-2 text-sm hover:bg-gray-100"
@@ -145,23 +155,19 @@ const Navbar = () => {
         <nav className="ml-auto hidden items-center gap-1 lg:flex">
           <Link
             to="/"
-            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/") ? "bg-gray-100 font-semibold" : "text-gray-600 hover:bg-gray-50"
+            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/")
+                ? "bg-gray-100 font-semibold"
+                : "text-gray-600 hover:bg-gray-50"
               }`}
           >
             Home
           </Link>
 
           <Link
-            to="/foods"
-            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/foods") ? "bg-gray-100 font-semibold" : "text-gray-600 hover:bg-gray-50"
-              }`}
-          >
-            Explore Foods
-          </Link>
-
-          <Link
             to="/restaurants"
-            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/restaurants") ? "bg-gray-100 font-semibold" : "text-gray-600 hover:bg-gray-50"
+            className={`rounded-full px-4 py-2.5 text-sm transition ${isActive("/restaurants")
+                ? "bg-gray-100 font-semibold"
+                : "text-gray-600 hover:bg-gray-50"
               }`}
           >
             Restaurants
@@ -170,7 +176,6 @@ const Navbar = () => {
 
         {/* RIGHT SIDE */}
         <div className="ml-auto flex items-center gap-1.5 lg:ml-3">
-
           {/* Wishlist */}
           <button
             onClick={() => navigate("/wishlist")}
@@ -214,22 +219,37 @@ const Navbar = () => {
               <div className="absolute right-0 top-12 w-52 rounded-2xl border bg-white p-2 shadow-xl">
                 {isLoggedIn ? (
                   <>
-                    <button onClick={() => navigate("/profile")} className="block w-full text-left px-3 py-2">
+                    <button
+                      onClick={() => navigate("/profile")}
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg"
+                    >
                       My Profile
                     </button>
-                    <button onClick={() => navigate("/orders")} className="block w-full text-left px-3 py-2">
+                    <button
+                      onClick={() => navigate("/orders")}
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg"
+                    >
                       My Orders
                     </button>
-                    <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-red-500">
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg"
+                    >
                       Logout
                     </button>
                   </>
                 ) : (
                   <>
-                    <button onClick={() => navigate("/login")} className="block w-full text-left px-3 py-2">
+                    <button
+                      onClick={() => navigate("/login")}
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg"
+                    >
                       Login
                     </button>
-                    <button onClick={() => navigate("/register")} className="block w-full text-left px-3 py-2">
+                    <button
+                      onClick={() => navigate("/register")}
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded-lg"
+                    >
                       Create Account
                     </button>
                   </>
@@ -240,7 +260,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* LOCATION MODAL */}
       <LocationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

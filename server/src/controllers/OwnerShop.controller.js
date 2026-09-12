@@ -200,3 +200,33 @@ module.exports = {
     updateShopLocation,
     deleteShop,
 };
+
+// Get all shops for public listing (Customers)
+const getAllShopsPublic = async (req, res) => {
+    try {
+        // Fetch active/open shops
+        const shops = await Shop.find({ isActive: true });
+
+        res.status(200).json({
+            success: true,
+            shops,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch restaurants",
+            error: error.message,
+        });
+    }
+};
+
+// Add to your exports:
+module.exports = {
+    createShop,
+    getMyShops,
+    getShop,
+    updateShop,
+    updateShopLocation,
+    deleteShop,
+    getAllShopsPublic, // <-- Expose this function
+};

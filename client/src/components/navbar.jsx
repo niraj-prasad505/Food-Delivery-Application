@@ -43,7 +43,7 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 bg-white px-4 py-4 md:px-8">
       <div
         className="
-          mx-auto flex h-[68px] max-w-7xl items-center
+          mx-auto flex h-17 max-w-7xl items-center
           gap-3 rounded-full bg-white px-5
           shadow-[0_5px_25px_rgba(0,0,0,0.07)]
         "
@@ -71,7 +71,7 @@ const Navbar = () => {
           >
             <MapPin size={15} />
 
-            <span className="max-w-[130px] truncate">
+            <span className="max-w-32.5 truncate">
               {address}
             </span>
 

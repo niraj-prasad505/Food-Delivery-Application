@@ -148,11 +148,11 @@ const Navbar = () => {
           </Link>
 
           <Link
-            to="/foods"
+            to="/explore"
             className={`
               rounded-full px-4 py-2.5 text-sm transition
               ${
-                isActive("/foods")
+                isActive("/explore")
                   ? "bg-gray-100 font-semibold text-gray-900"
                   : "text-gray-600 hover:bg-gray-50"
               }

@@ -299,6 +299,8 @@ const loginOtp = async (req, res) => {
       }
     );
 
+    console.log("Generated JWT Token:", token);
+
     // Set cookie
     res.cookie("token", token, {
       httpOnly: true,

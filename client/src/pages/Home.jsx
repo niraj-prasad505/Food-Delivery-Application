@@ -1,8 +1,3 @@
-// src/pages/Home.jsx
-//
-// Composes the homepage content only. Navbar and Footer are already
-// rendered globally (e.g. in App.jsx), so they are NOT included here.
-
 import { homeData } from "../data/homeData";
 
 import HeroSection from "../components/home/HeroSection";

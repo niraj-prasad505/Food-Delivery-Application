@@ -44,10 +44,6 @@ const productSchema = new mongoose.Schema({
         type: String,
         default: "#ffffff"
     },
-    brand: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Brand"
-    },
     rating: {
         type: Number,
         default: 0,

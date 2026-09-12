@@ -75,7 +75,7 @@ export default function ShopListing() {
               className="flex flex-col items-center gap-2 min-w-[64px]"
             >
               <div
-                className={`w-14 h-14 rounded-full flex items-center justify-center text-xl transition-all ${
+                className={`w-14 h-14 mt-1 rounded-full flex items-center justify-center text-xl transition-all ${
                   selectedCategory === cat.id
                     ? "bg-red-100 ring-2 ring-red-500 shadow-sm"
                     : "bg-orange-50 hover:bg-orange-100"

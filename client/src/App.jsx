@@ -7,6 +7,7 @@ import ShopListing from "./pages/ShopListing";
 import Navbar from "./components/navbar";
 import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
+import Wishlist from "./pages/Wishlist";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/explore" element={<ExploreFoods />} />
+        <Route path="/wishlist" element={<Wishlist />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Search, Filter, Heart, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -153,6 +153,9 @@ export default function ShopListing() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  // Ref to handle clicking outside of filter menu
+  const filterRef = useRef(null);
+
   const initialFilters = {
     address: "all",
     maxPrice: 5000,
@@ -171,11 +174,6 @@ export default function ShopListing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // =========================================================================
-    // FUTURE DB INTEGRATION:
-    // Fetches real shops from Express backend API. If the database returns zero
-    // records or the server is offline, it falls back to MOCK_RESTAURANTS.
-    // =========================================================================
     fetch("http://localhost:5000/api/shops/public")
       .then((res) => res.json())
       .then((data) => {
@@ -191,6 +189,19 @@ export default function ShopListing() {
         setShops(MOCK_RESTAURANTS);
         setLoading(false);
       });
+  }, []);
+
+  // Close filter dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (filterRef.current && !filterRef.current.contains(event.target)) {
+        setIsFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const toggleFavorite = (e, shopId) => {
@@ -217,7 +228,7 @@ export default function ShopListing() {
           tag.toLowerCase().includes(selectedCategory.toLowerCase())
         ));
 
-    // Custom Filter Modal Controls
+    // Custom Filter Controls
     const matchesAddress =
       appliedFilters.address === "all" ||
       shop.city?.toLowerCase().includes(appliedFilters.address.toLowerCase());
@@ -264,8 +275,8 @@ export default function ShopListing() {
             />
           </div>
 
-          {/* Filter Button Container */}
-          <div className="relative">
+          {/* Filter Button Container (Attached ref for click outside) */}
+          <div className="relative" ref={filterRef}>
             <button
               onClick={() => {
                 setDraftFilters(appliedFilters);
@@ -280,7 +291,7 @@ export default function ShopListing() {
               )}
             </button>
 
-            {/* Small Inline Popover Window (Anchored right below button) */}
+            {/* Small Inline Popover Window */}
             {isFilterOpen && (
               <div className="absolute right-0 top-14 z-50 bg-white rounded-3xl w-80 p-5 shadow-2xl border border-orange-100 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex justify-between items-center mb-3">
@@ -515,12 +526,12 @@ export default function ShopListing() {
                     </div>
                   </div>
 
-                  {/* Explore Menu Button (Placed on Left Side) */}
+                  {/* Explore Menu Button (Navigates directly to /restaurant/:id/menu) */}
                   <div className="mt-3">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/restaurant/${shop._id}`);
+                        navigate(`/restaurant/${shop._id}/menu`);
                       }}
                       className="px-4 py-1.5 bg-orange-50 text-[#ff6840] hover:bg-[#ff6840] hover:text-white font-bold text-xs rounded-xl transition-all shadow-sm border border-orange-100"
                     >

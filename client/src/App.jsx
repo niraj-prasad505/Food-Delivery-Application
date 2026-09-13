@@ -8,6 +8,7 @@ import Navbar from "./components/navbar";
 import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
 import Wishlist from "./pages/Wishlist";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/explore" element={<ExploreFoods />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </BrowserRouter>
   );

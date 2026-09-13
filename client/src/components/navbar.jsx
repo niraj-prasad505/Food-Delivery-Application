@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
+import icon from "../assets/icon.png";
 import {
   MapPin,
   ChevronDown,
@@ -66,7 +67,7 @@ const Navbar = () => {
           to="/"
           className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]"
         >
-          Snack<span className="text-[#ff8a65]">Drop</span>
+          <img src={icon} alt="Logo" className="h-12" />
         </Link>
 
         {/*ADDRESS*/}

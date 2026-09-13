@@ -14,6 +14,11 @@ const {
     loginOtp
 } = require("../controllers/UserAuth.controller");
 
+const {
+    getProfile,
+    updateProfile,
+} = require("../controllers/user.controller");
+
 const authMiddleware = require("../middleware/auth.middleware");
 
 router.post("/register", register);
@@ -31,5 +36,10 @@ router.get("/me", authMiddleware, getCurrentUser);
 router.post("/forgot-password", forgotPassword);
 
 router.post("/reset-password/:token", resetPassword);
+
+
+router.get("/profile",authMiddleware,getProfile);
+
+router.patch("/profile",authMiddleware,updateProfile);
 
 module.exports = router;

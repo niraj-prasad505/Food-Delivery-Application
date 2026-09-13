@@ -12,14 +12,16 @@ const wishlistSchema = new mongoose.Schema(
         items: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: "Food",
+                ref: "Product",
             },
         ],
     },
-    
     {
         timestamps: true,
     }
 );
 
-module.exports = mongoose.model("Wishlist", wishlistSchema);
+module.exports = mongoose.model(
+    "Wishlist",
+    wishlistSchema
+);

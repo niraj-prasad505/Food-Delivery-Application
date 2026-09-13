@@ -7,7 +7,7 @@ const FoodTips = ({ tips }) => {
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <p className="text-sm font-medium text-[#FF6840] mb-1">Blog</p>
         <h2 className="text-xl sm:text-2xl font-bold text-[#1F1F1F] mb-6">
-          FoodEx Tips & Tricks
+          SnackDrop Tips & Tricks
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

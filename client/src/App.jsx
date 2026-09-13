@@ -8,6 +8,7 @@ import Navbar from "./components/navbar";
 import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
 import Wishlist from "./pages/Wishlist";
+import Footer from "./components/footer"; // Capitalized component import
 
 function App() {
   return (
@@ -24,6 +25,9 @@ function App() {
         <Route path="/explore" element={<ExploreFoods />} />
         <Route path="/wishlist" element={<Wishlist />} />
       </Routes>
+
+      {/* Global Footer (Renders on every page) */}
+      <Footer />
     </BrowserRouter>
   );
 }

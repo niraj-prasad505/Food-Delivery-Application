@@ -1,6 +1,6 @@
 // src/data/homeData.js
 //
-// Centralized dummy data for the FoodEx homepage.
+// Centralized dummy data for the SnackDrop homepage.
 // Later this entire object can be replaced with data fetched from
 // `GET /api/home`, without changing any component code — every
 // component below only consumes data through props.
@@ -203,7 +203,7 @@ export const homeData = {
       id: 2,
       title: "Get 50% Off Your First Order",
       description:
-        "New to FoodEx? Sign up today and enjoy half price on your very first order from any partner restaurant.",
+        "New to SnackDrop? Sign up today and enjoy half price on your very first order from any partner restaurant.",
       image:
         "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900&q=80",
       buttonText: "Order Now",

@@ -90,7 +90,7 @@ export default function Register() {
           </h1>
 
           <p className="text-center text-sm text-gray-500 mt-2 mb-7">
-            Join FoodEx and start ordering delicious food!
+            Join SnackDrop and start ordering delicious food!
           </p>
 
           <form
@@ -264,7 +264,7 @@ export default function Register() {
 
             <div>
               <h2 className="text-xl font-bold text-orange-500">
-                FoodEx
+                SnackDrop
               </h2>
 
               <p className="text-xs mt-2">
@@ -305,7 +305,7 @@ export default function Register() {
           </div>
 
           <div className="border-t border-gray-700 mt-6 pt-5 text-center text-xs">
-            © 2026 FoodEx. All rights reserved.
+            © 2026 SnackDrop. All rights reserved.
           </div>
 
         </div>

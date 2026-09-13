@@ -455,7 +455,7 @@ export default function ShopListing() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className="flex flex-col items-center gap-2 min-w-[64px]"
+              className="flex flex-col items-center gap-2 min-w-16"
             >
               <div
                 className={`w-14 h-14 mt-1 rounded-full flex items-center justify-center text-xl transition-all ${
@@ -491,7 +491,7 @@ export default function ShopListing() {
                 className="bg-white rounded-2xl p-4 flex gap-6 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer relative"
               >
                 {/* Image */}
-                <div className="w-44 h-36 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                <div className="w-44 h-36 rounded-xl overflow-hidden bg-gray-100 shrink-0">
                   <img
                     src={shop.icon || shop.images?.[0] || "https://via.placeholder.com/200"}
                     alt={shop.name}

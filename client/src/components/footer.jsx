@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import icon from "../assets/icon.png";
 
 export default function Footer() {
   return (
@@ -7,8 +8,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
         {/* Brand Section */}
         <div>
-          <h3 className="shrink-0 text-2xl font-extrabold tracking-tight text-[#ff6840]">
-            Snack<span className="text-[#ff8a65]">Drop</span></h3>
+          <img src={icon} className="h-17 ml-2"/>
           <p className="text-xs text-gray-400 leading-relaxed">
             Great food, better mood. Delivered to you.
           </p>

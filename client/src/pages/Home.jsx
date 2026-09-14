@@ -1,5 +1,9 @@
 import { homeData } from "../data/homeData";
 
+// Centralized Data Sources
+import { shopsData } from "../data/shopsData";
+import { foodsData } from "../data/foodsData";
+
 import HeroSection from "../components/home/HeroSection";
 import NearbyRestaurants from "../components/home/NearbyRestaurants";
 import FoodCategories from "../components/home/FoodCategories";
@@ -11,12 +15,11 @@ import ServiceBanner from "../components/home/ServiceBanner";
 import FoodTips from "../components/home/FoodTips";
 
 const Home = () => {
-  // Later this can become:
-  // const [homeData, setHomeData] = useState(null);
-  // useEffect(() => { fetch("/api/home").then(r => r.json()).then(setHomeData); }, []);
-  // The components below will keep working unchanged either way.
 
   if (!homeData) return <div>Loading...</div>;
+
+  // Use shopsData for restaurants list; fallback to homeData if needed
+  const displayShops = shopsData.length > 0 ? shopsData : (homeData.nearbyRestaurants || []);
 
   return (
     <main className="space-y-10">
@@ -26,7 +29,7 @@ const Home = () => {
 
       {/* Nearby Restaurants */}
       <NearbyRestaurants 
-        restaurants={homeData.nearbyRestaurants || []} 
+        restaurants={displayShops} 
       />
 
       {/* Food Categories */}
@@ -37,7 +40,7 @@ const Home = () => {
 
       {/* Popular Restaurants */}
       <PopularRestaurants
-        restaurants={homeData.popularRestaurants || []}
+        restaurants={displayShops}
         filters={homeData.popularRestaurantFilters || []}
       />
 
@@ -55,8 +58,6 @@ const Home = () => {
       {/* Service features */}
       <ServiceBanner service={homeData.serviceFeatures} />
 
-      {/* Tips */}
-      <FoodTips tips={homeData.tips || []} />
     </main>
   );
 };

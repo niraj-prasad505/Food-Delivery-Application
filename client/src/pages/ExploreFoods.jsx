@@ -5,7 +5,8 @@ import ExploreHero from "../components/explore/ExploreHero";
 import CategoryFilter from "../components/explore/CategoryFilter";
 import FoodGrid from "../components/explore/FoodGrid";
 
-import { foods } from "../data/foods";
+// Replaced old static import with your new centralized dataset
+import { foodsData as foods } from "../data/foodsData";
 
 const ExploreFoods = () => {
 

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { homeData } from "../data/homeData";
 
-// Fallback Data Sources (Keep while testing API)
+// Fallback Data Sources
 import { shopsData } from "../data/shopsData";
 
 import HeroSection from "../components/home/HeroSection";
@@ -23,12 +23,11 @@ const Home = () => {
     fetch("http://localhost:5000/api/shops")
       .then((res) => res.json())
       .then((data) => {
-        // Support array response or object wrapper { success: true, shops: [...] }
         const shopList = Array.isArray(data) ? data : data.shops || data.data || [];
         if (shopList.length > 0) {
           setShops(shopList);
         } else {
-          setShops(shopsData); // Fallback to static data if database returns empty
+          setShops(shopsData);
         }
       })
       .catch((err) => {
@@ -49,7 +48,7 @@ const Home = () => {
   return (
     <main className="space-y-10">
       
-      {/* Hero Banner */}
+      {/* Hero Banner with active search redirection */}
       <HeroSection hero={homeData.hero} />
 
       {/* Nearby Restaurants (MongoDB dynamic data) */}

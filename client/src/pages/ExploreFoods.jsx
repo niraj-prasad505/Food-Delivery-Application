@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect } from "react";
-import { ChevronDown } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ChevronDown, ArrowUpDown, Check, Flame, Star, ArrowUp, ArrowDown } from "lucide-react";
 
 import ExploreHero from "../components/explore/ExploreHero";
 import CategoryFilter from "../components/explore/CategoryFilter";
@@ -8,29 +9,50 @@ import FoodGrid from "../components/explore/FoodGrid";
 // Fallback dataset
 import { foodsData as fallbackFoods } from "../data/foodsData";
 
-const ExploreFoods = () => {
+const SORT_OPTIONS = [
+  { id: "popularity", label: "Popularity", icon: Flame },
+  { id: "rating", label: "Rating", icon: Star },
+  { id: "price-low", label: "Price: Low to High", icon: ArrowUp },
+  { id: "price-high", label: "Price: High to Low", icon: ArrowDown },
+];
 
-  const [foods, setFoods] = useState([]);
+const ExploreFoods = () => {
+  const [searchParams] = useSearchParams();
+  const urlQuery = searchParams.get("search") || "";
+
+  // Master list of all foods fetched from API/Fallback (never filtered directly)
+  const [allFoods, setAllFoods] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(urlQuery);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [sort, setSort] = useState("popularity");
 
-  const [activeCategory, setActiveCategory] =
-    useState("all");
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const sortRef = useRef(null);
 
-  const [sort, setSort] =
-    useState("popularity");
+  const [favorites, setFavorites] = useState(new Set());
+  const [cartItems, setCartItems] = useState([]);
 
-  const [favorites, setFavorites] =
-    useState(new Set());
+  // Sync state if URL search query changes dynamically
+  useEffect(() => {
+    if (urlQuery) {
+      setSearch(urlQuery);
+    }
+  }, [urlQuery]);
 
-  const [cartItems, setCartItems] =
-    useState([]);
+  // Close sort dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sortRef.current && !sortRef.current.contains(e.target)) {
+        setIsSortOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // =============================
-  // FETCH FOODS FROM MONGO DATABASE
-  // =============================
-
+  // Fetch all foods once on mount
   useEffect(() => {
     fetch("http://localhost:5000/api/foods")
       .then((res) => res.json())
@@ -41,36 +63,29 @@ const ExploreFoods = () => {
 
         const targetData = rawProducts.length > 0 ? rawProducts : fallbackFoods;
 
-        // Normalize data format so both MongoDB and fallback items render images correctly
-        const normalized = targetData.map((food) => ({
+        const normalized = targetData.map((food, index) => ({
           ...food,
-          id: food._id || food.id,
-          // Extract the first image from MongoDB's images array if single 'image' doesn't exist
+          id: String(food._id || food.id || index),
           image: food.image || food.images?.[0] || "https://via.placeholder.com/300",
         }));
 
-        setFoods(normalized);
+        setAllFoods(normalized);
       })
       .catch((err) => {
         console.warn("Backend API unavailable, using fallback foods dataset:", err);
-        const normalizedFallback = fallbackFoods.map((food) => ({
+        const normalizedFallback = fallbackFoods.map((food, index) => ({
           ...food,
-          id: food._id || food.id,
+          id: String(food._id || food.id || index),
           image: food.image || food.images?.[0] || "https://via.placeholder.com/300",
         }));
-        setFoods(normalizedFallback);
+        setAllFoods(normalizedFallback);
       })
       .finally(() => setLoading(false));
   }, []);
 
-  // =============================
-  // FILTER + SEARCH + SORT
-  // =============================
-
+  // Filter & Search (Always filters against master `allFoods` list)
   const filteredFoods = useMemo(() => {
-
-    let result = foods.filter((food) => {
-
+    let result = allFoods.filter((food) => {
       const categoryMatch =
         activeCategory === "all" ||
         food.category?.toLowerCase() === activeCategory.toLowerCase();
@@ -78,167 +93,109 @@ const ExploreFoods = () => {
       const searchText = `
         ${food.name || ""}
         ${food.cuisine || ""}
-        ${food.restaurant || ""}
+        ${food.category || ""}
       `.toLowerCase();
 
-      const searchMatch =
-        searchText.includes(
-          search.toLowerCase().trim()
-        );
+      const searchMatch = searchText.includes(search.toLowerCase().trim());
 
       return categoryMatch && searchMatch;
     });
 
-    // SORT
-
-    if (sort === "rating") {
-      result.sort(
-        (a, b) => (b.rating || 0) - (a.rating || 0)
-      );
-    }
-
-    if (sort === "price-low") {
-      result.sort(
-        (a, b) => a.price - b.price
-      );
-    }
-
-    if (sort === "price-high") {
-      result.sort(
-        (a, b) => b.price - a.price
-      );
+    if (sort === "rating" || sort === "popularity") {
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sort === "price-low") {
+      result.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (sort === "price-high") {
+      result.sort((a, b) => (b.price || 0) - (a.price || 0));
     }
 
     return result;
-
-  }, [
-    foods,
-    search,
-    activeCategory,
-    sort,
-  ]);
-
-  // =============================
-  // FAVORITE
-  // =============================
+  }, [allFoods, search, activeCategory, sort]);
 
   const handleFavorite = (id) => {
-
     setFavorites((previous) => {
-
-      const updated =
-        new Set(previous);
-
+      const updated = new Set(previous);
       if (updated.has(id)) {
         updated.delete(id);
       } else {
         updated.add(id);
       }
-
       return updated;
     });
-
   };
-
-  // =============================
-  // CART
-  // =============================
 
   const handleAddToCart = (food) => {
-
-    setCartItems((previous) => [
-      ...previous,
-      food,
-    ]);
-
-    console.log(
-      "Added to cart:",
-      food
-    );
+    setCartItems((previous) => [...previous, food]);
   };
 
+  const currentSortLabel = SORT_OPTIONS.find((opt) => opt.id === sort)?.label || "Popularity";
+
   return (
-
     <div className="min-h-screen bg-white">
-
-      {/* HERO */}
-
-      <ExploreHero
-        search={search}
-        setSearch={setSearch}
-      />
-
-      {/* CONTENT */}
+      <ExploreHero search={search} setSearch={setSearch} />
 
       <section className="mx-auto max-w-7xl px-5 pb-16 lg:px-8">
-
-        {/* CATEGORIES */}
-
         <CategoryFilter
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
         />
 
-        {/* HEADING */}
-
         <div className="mb-5 mt-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-
           <div>
-
             <h2 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
               Popular Foods
             </h2>
-
             <p className="mt-1 text-sm text-[#687586]">
               Handpicked dishes from top restaurants near you
             </p>
-
           </div>
 
-          {/* SORT */}
-
-          <div className="relative flex h-12 items-center gap-1 rounded-xl border border-gray-200 px-4 text-sm text-gray-700">
-
-            <span>
-              Sort by:
-            </span>
-
-            <select
-              value={sort}
-              onChange={(e) =>
-                setSort(e.target.value)
-              }
-              className="appearance-none bg-transparent pr-5 font-medium outline-none"
+          <div className="relative" ref={sortRef}>
+            <button
+              type="button"
+              onClick={() => setIsSortOpen(!isSortOpen)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-2xl text-xs sm:text-sm font-semibold text-gray-700 hover:border-[#FF6840] hover:text-[#FF6840] shadow-sm transition-all duration-200 active:scale-95"
             >
+              <ArrowUpDown className="w-4 h-4 text-[#FF6840]" />
+              <span>Sort by: <strong className="text-gray-900">{currentSortLabel}</strong></span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isSortOpen ? "rotate-180" : ""}`} />
+            </button>
 
-              <option value="popularity">
-                Popularity
-              </option>
+            {isSortOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Sort Products
+                </div>
+                {SORT_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  const isSelected = sort === option.id;
 
-              <option value="rating">
-                Rating
-              </option>
-
-              <option value="price-low">
-                Price: Low to High
-              </option>
-
-              <option value="price-high">
-                Price: High to Low
-              </option>
-
-            </select>
-
-            <ChevronDown
-              size={16}
-              className="pointer-events-none absolute right-2"
-            />
-
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setSort(option.id);
+                        setIsSortOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold transition-all ${
+                        isSelected
+                          ? "bg-orange-50 text-[#FF6840]"
+                          : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={`w-4 h-4 ${isSelected ? "text-[#FF6840]" : "text-gray-400"}`} />
+                        <span>{option.label}</span>
+                      </div>
+                      {isSelected && <Check className="w-4 h-4 text-[#FF6840]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-
         </div>
-
-        {/* FOODS */}
 
         {loading ? (
           <div className="py-16 text-center text-sm font-medium text-gray-500">
@@ -252,20 +209,13 @@ const ExploreFoods = () => {
             onAddToCart={handleAddToCart}
           />
         )}
-
       </section>
-
-      {/* SIMPLE CART STATUS */}
 
       {cartItems.length > 0 && (
         <div className="fixed bottom-5 right-5 z-50 rounded-full bg-[#17191c] px-5 py-3 text-sm font-semibold text-white shadow-xl">
-
-          🛒 {cartItems.length} item
-          {cartItems.length > 1 ? "s" : ""}
-
+          🛒 {cartItems.length} item{cartItems.length > 1 ? "s" : ""}
         </div>
       )}
-
     </div>
   );
 };

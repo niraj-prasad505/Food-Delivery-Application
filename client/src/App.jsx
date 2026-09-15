@@ -13,8 +13,9 @@ import Wishlist from "./pages/Wishlist";
 import Footer from "./components/footer";
 import Dashboard from "./pages/admin/Dashboard";
 import Shops from "./pages/admin/Shops";
+import Profile from "./pages/Profile";
 import AdminRegister from "./pages/admin/AdminRegister";
-import adminLogin from "./pages/admin/AdminLogin";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 // Admin pages render their own AdminSidebar/AdminHeader (see AdminLayout),
 // so the customer Navbar/Footer must not render on top of them.
@@ -36,12 +37,13 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/explore" element={<ExploreFoods />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/profile" element={<Profile />} />
 
         {/* Admin panel */}
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/shops" element={<Shops />} />
         <Route path="/admin/register" element={<AdminRegister />} />
-        <Route path="/admin/login" element={<adminLogin />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
       {!isAdminRoute && <Footer />}
     </>

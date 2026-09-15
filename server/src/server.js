@@ -43,7 +43,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/users", userRouter);
 
-app.use("/api/owners", ownerRouter);
+app.use("/api/owner-auth", ownerRouter);
 
 app.use("/api/reviews", reviewRoutes);
 

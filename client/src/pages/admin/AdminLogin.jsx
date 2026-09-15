@@ -8,10 +8,11 @@ import {
 } from "../../services/adminAuthService";
 
 // import { useUser } from "../context/UserContext";
+import { useAdmin } from "../../context/AdminContext";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { login } = useUser();
+  const { login } = useAdmin();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

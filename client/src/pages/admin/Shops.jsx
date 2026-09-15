@@ -144,7 +144,7 @@ export default function Shops() {
         action={{ label: "Create New Shop", icon: PlusIcon, onClick: openCreateModal }}
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[18px] mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4.5 mb-5">
         <StatCard icon={StoreIcon} label="Total Shops" value={stats.total} color="orange" />
         <StatCard icon={StoreIcon} label="Active" value={stats.active} color="green" />
         <StatCard icon={StoreIcon} label="Pending" value={stats.pending} color="blue" />
@@ -177,7 +177,7 @@ export default function Shops() {
           <select
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            className="px-3.5 py-2.5 rounded-lg border border-gray-200 bg-white text-[13px] text-gray-700 outline-none focus:border-[#ff5a36] sm:w-[180px]"
+            className="px-3.5 py-2.5 rounded-lg border border-gray-200 bg-white text-[13px] text-gray-700 outline-none focus:border-[#ff5a36] sm:w-45"
           >
             {LOCATIONS.map((loc) => (
               <option key={loc} value={loc}>

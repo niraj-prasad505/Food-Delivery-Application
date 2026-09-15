@@ -247,7 +247,7 @@ const login = async (req, res) => {
       }
     );
 
-    res.cookie("token", token, {
+    res.cookie("adminToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -347,7 +347,7 @@ const loginOtp = async (req, res) => {
       }
     );
 
-    res.cookie("token", token, {
+    res.cookie("adminToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -452,7 +452,7 @@ const createLoginOtp = async (req, res) => {
 
 // Logout
 const logout = (req, res) => {
-  res.clearCookie("token", {
+  res.clearCookie("adminToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

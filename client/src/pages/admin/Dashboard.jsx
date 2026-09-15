@@ -4,6 +4,8 @@ import StatCard from "../../components/admin/StatCard";
 import DataTable from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
 import OrdersChart from "../../components/admin/OrdersChart";
+import { useAdmin  } from "../../context/AdminContext";
+
 import {
   CartIcon,
   StoreIcon,
@@ -51,10 +53,14 @@ export default function Dashboard() {
     console.log("Quick action:", id);
   };
 
+  
+
+  // console.log("Admin in Dashboard:", admin);
+
   return (
     <AdminLayout title="Welcome back, Admin! 👋" subtitle="Here's what's happening with SnackDrop today.">
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[18px] mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4.5 mb-5">
         {dashboardStats.map((stat) => (
           <StatCard
             key={stat.id}
@@ -69,7 +75,7 @@ export default function Dashboard() {
       </div>
 
       {/* Chart + Quick actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-[18px] mb-5 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4.5 mb-5 items-stretch">
         <div className="bg-white border border-gray-100 rounded-2xl shadow-[0_2px_18px_rgba(24,24,48,0.06)] p-5">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-[16px] font-bold text-gray-900">Orders Overview</h2>
@@ -103,7 +109,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent orders + Top products */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4.5">
         <div className="bg-white border border-gray-100 rounded-2xl shadow-[0_2px_18px_rgba(24,24,48,0.06)] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-[16px] font-bold text-gray-900">Recent Orders</h2>

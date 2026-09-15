@@ -1,12 +1,14 @@
 // src/components/admin/AdminHeader.jsx
 import SearchBar from "./SearchBar";
 import { MenuIcon, BellIcon } from "./Icons";
+import { useAdmin } from "../../context/AdminContext";
 
 /**
  * title / subtitle describe the current page.
  * onMenuClick opens the mobile sidebar drawer (passed down from AdminLayout).
  */
 export default function AdminHeader({ title, subtitle, onMenuClick }) {
+  const { admin } = useAdmin();
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-4 sm:px-7 py-3.5 flex items-center gap-4">
       <button
@@ -43,10 +45,10 @@ export default function AdminHeader({ title, subtitle, onMenuClick }) {
 
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#ff5a36] to-[#e14a22] text-white flex items-center justify-center text-[13px] font-bold shrink-0">
-            A
+            {admin?.name ? admin.name.charAt(0).toUpperCase() : "A"}
           </div>
           <div className="leading-tight hidden sm:block">
-            <p className="text-[13.5px] font-bold text-gray-900">Admin</p>
+            <p className="text-[13.5px] font-bold text-gray-900">{admin?.name || "Admin"}</p>
             <p className="text-[11.5px] text-gray-400">Super Admin</p>
           </div>
         </div>

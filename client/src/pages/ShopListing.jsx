@@ -47,21 +47,21 @@ export default function ShopListing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/shops/public")
+    fetch("http://localhost:5000/api/shops")
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.shops && data.shops.length > 0) {
-          setShops(data.shops);
+        const shopList = Array.isArray(data) ? data : data.shops || data.data || [];
+        if (shopList.length > 0) {
+          setShops(shopList);
         } else {
           setShops(MOCK_RESTAURANTS);
         }
-        setLoading(false);
       })
       .catch((err) => {
         console.warn("Backend API offline/empty. Falling back to temporary data:", err);
         setShops(MOCK_RESTAURANTS);
-        setLoading(false);
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   // Close filter dropdown on click outside
@@ -357,88 +357,91 @@ export default function ShopListing() {
           <div className="text-center py-16 text-gray-400 text-sm">No restaurants found.</div>
         ) : (
           <div className="flex flex-col gap-6">
-            {filteredShops.map((shop) => (
-              <div
-                key={shop._id}
-                onClick={() => navigate(`/restaurant/${shop._id}`)}
-                className="bg-white rounded-2xl p-4 flex gap-6 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer relative"
-              >
-                {/* Image */}
-                <div className="w-44 h-36 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                  <img
-                    src={shop.icon || shop.images?.[0] || "https://via.placeholder.com/200"}
-                    alt={shop.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Left Info Section (Details & Explore Button) */}
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">{shop.name}</h2>
-
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600 mt-1">
-                      <span className="flex items-center gap-1 text-orange-500 font-bold">
-                        <Star className="w-4 h-4 fill-orange-500 stroke-orange-500" />
-                        {shop.rating || 4.5}
-                      </span>
-                      <span className="text-gray-400">({shop.reviewsCount || "500+"})</span>
-                      <span className="text-gray-300">•</span>
-                      <span className="text-gray-600">{shop.deliveryTime || "25–35 mins"}</span>
-                    </div>
-
-                    <div className="flex gap-2 mt-2.5">
-                      {(shop.tags || ["Fast Food"]).map((tag, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Explore Menu Button (Navigates directly to /restaurant/:id/menu) */}
-                  <div className="mt-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/restaurant/${shop._id}/menu`);
-                      }}
-                      className="px-4 py-1.5 bg-orange-50 text-[#ff6840] hover:bg-[#ff6840] hover:text-white font-bold text-xs rounded-xl transition-all shadow-sm border border-orange-100"
-                    >
-                      Explore Menu ✨
-                    </button>
-                  </div>
-                </div>
-
-                {/* Right Action Panel (Heart, Delivery Status & Min Order) */}
-                <div className="flex flex-col justify-between items-end py-1 shrink-0">
-                  <button
-                    onClick={(e) => toggleFavorite(e, shop._id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                  >
-                    <Heart
-                      className={`w-5 h-5 ${
-                        favorites[shop._id]
-                          ? "fill-red-500 text-red-500"
-                          : "text-gray-400"
-                      }`}
+            {filteredShops.map((shop) => {
+              const shopId = shop._id || shop.id;
+              return (
+                <div
+                  key={shopId}
+                  onClick={() => navigate(`/restaurant/${shopId}`)}
+                  className="bg-white rounded-2xl p-4 flex gap-6 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer relative"
+                >
+                  {/* Image */}
+                  <div className="w-44 h-36 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                    <img
+                      src={shop.icon || shop.banner || shop.images?.[0] || "https://via.placeholder.com/200"}
+                      alt={shop.name}
+                      className="w-full h-full object-cover"
                     />
-                  </button>
+                  </div>
 
-                  <div className="text-right">
-                    <span className="text-emerald-600 font-bold text-sm block">
-                      {shop.freeDelivery !== false ? "Free Delivery" : "Paid Delivery"}
-                    </span>
-                    <span className="text-xs text-gray-400 font-medium block mt-0.5">
-                      Min. order ₹{shop.minOrder || 199}
-                    </span>
+                  {/* Left Info Section */}
+                  <div className="flex-1 flex flex-col justify-between py-1">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 tracking-tight">{shop.name}</h2>
+
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-600 mt-1">
+                        <span className="flex items-center gap-1 text-orange-500 font-bold">
+                          <Star className="w-4 h-4 fill-orange-500 stroke-orange-500" />
+                          {shop.rating || 4.5}
+                        </span>
+                        <span className="text-gray-400">({shop.reviewsCount || "500+"})</span>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-gray-600">{shop.deliveryTime || "25–35 mins"}</span>
+                      </div>
+
+                      <div className="flex gap-2 mt-2.5">
+                        {(shop.tags || ["Fast Food"]).map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Explore Menu Button */}
+                    <div className="mt-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/restaurant/${shopId}`);
+                        }}
+                        className="px-4 py-1.5 bg-orange-50 text-[#ff6840] hover:bg-[#ff6840] hover:text-white font-bold text-xs rounded-xl transition-all shadow-sm border border-orange-100"
+                      >
+                        Explore Menu ✨
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Action Panel */}
+                  <div className="flex flex-col justify-between items-end py-1 shrink-0">
+                    <button
+                      onClick={(e) => toggleFavorite(e, shopId)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                    >
+                      <Heart
+                        className={`w-5 h-5 ${
+                          favorites[shopId]
+                            ? "fill-red-500 text-red-500"
+                            : "text-gray-400"
+                        }`}
+                      />
+                    </button>
+
+                    <div className="text-right">
+                      <span className="text-emerald-600 font-bold text-sm block">
+                        {shop.freeDelivery !== false ? "Free Delivery" : "Paid Delivery"}
+                      </span>
+                      <span className="text-xs text-gray-400 font-medium block mt-0.5">
+                        Min. order ₹{shop.minOrder || 199}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

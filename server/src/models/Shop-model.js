@@ -2,11 +2,10 @@ const mongoose = require("mongoose");
 
 const shopSchema = new mongoose.Schema(
     {
-        // One owner can create multiple shops
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Owner",
-            required: true,
+            required: false, // Made optional for seed data
         },
 
         name: {
@@ -20,12 +19,14 @@ const shopSchema = new mongoose.Schema(
             trim: true,
         },
 
-        // Shop logo / profile image
         icon: {
             type: String,
         },
 
-        // Shop gallery
+        banner: {
+            type: String,
+        },
+
         images: [
             {
                 type: String,
@@ -34,8 +35,8 @@ const shopSchema = new mongoose.Schema(
 
         phone: {
             type: String,
-            required: true,
             trim: true,
+            default: "+880 1700-000000",
         },
 
         address: {
@@ -50,23 +51,54 @@ const shopSchema = new mongoose.Schema(
             trim: true,
         },
 
-        // Added later by owner from the physical shop
+        tags: [
+            {
+                type: String,
+            },
+        ],
+
+        rating: {
+            type: Number,
+            default: 4.5,
+        },
+
+        reviewsCount: {
+            type: String,
+            default: "500+",
+        },
+
+        deliveryTime: {
+            type: String,
+            default: "20–30 mins",
+        },
+
+        minOrder: {
+            type: Number,
+            default: 199,
+        },
+
+        freeDelivery: {
+            type: Boolean,
+            default: true,
+        },
+
         location: {
             type: {
                 type: String,
                 enum: ["Point"],
+                default: "Point",
             },
             coordinates: {
                 type: [Number],
+                default: [91.8687, 24.8949], // Sylhet default coordinates
             },
         },
 
-        // Maximum delivery distance
         deliveryRadiusKm: {
             type: Number,
             min: 1,
             max: 50,
-            default: 5,
+            default: 10,
         },
 
         isOpen: {
@@ -84,7 +116,6 @@ const shopSchema = new mongoose.Schema(
     }
 );
 
-// Required for MongoDB nearby-location queries
 shopSchema.index({ location: "2dsphere" });
 
-module.exports = mongoose.model("Shop", shopSchema);
+module.exports = mongoose.models.Shop || mongoose.model("Shop", shopSchema);

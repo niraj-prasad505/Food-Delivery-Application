@@ -1,3 +1,5 @@
+// src/components/explore/FoodCard.jsx
+import { useNavigate } from "react-router-dom";
 import {
   Heart,
   Star,
@@ -10,9 +12,13 @@ const FoodCard = ({
   onFavorite,
   onAddToCart,
 }) => {
+  const navigate = useNavigate();
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_7px_22px_rgba(28,32,37,0.06)] transition duration-200 hover:-translate-y-1 hover:shadow-xl">
+    <article 
+      onClick={() => navigate(`/food/${food.id}`)}
+      className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_7px_22px_rgba(28,32,37,0.06)] transition duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer"
+    >
 
       {/* IMAGE */}
       <div className="relative">
@@ -25,7 +31,10 @@ const FoodCard = ({
 
         {/* FAVORITE */}
         <button
-          onClick={() => onFavorite(food.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onFavorite(food.id);
+          }}
           className={`
             absolute right-3 top-3
             grid h-10 w-10 place-items-center
@@ -90,11 +99,14 @@ const FoodCard = ({
         <div className="mt-4 flex items-center justify-between gap-2">
 
           <strong className="text-lg font-bold text-[#ff5b3d]">
-            ৳ {food.price}
+             ₹{food.price}
           </strong>
 
           <button
-            onClick={() => onAddToCart(food)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToCart(food);
+            }}
             className="rounded-full bg-[#ff5b3d] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#f45135]"
           >
             Add to Cart

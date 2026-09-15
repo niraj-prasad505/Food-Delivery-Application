@@ -1,14 +1,17 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 
 import ExploreHero from "../components/explore/ExploreHero";
 import CategoryFilter from "../components/explore/CategoryFilter";
 import FoodGrid from "../components/explore/FoodGrid";
 
-// Replaced old static import with your new centralized dataset
-import { foodsData as foods } from "../data/foodsData";
+// Fallback dataset
+import { foodsData as fallbackFoods } from "../data/foodsData";
 
 const ExploreFoods = () => {
+
+  const [foods, setFoods] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
 
@@ -25,6 +28,42 @@ const ExploreFoods = () => {
     useState([]);
 
   // =============================
+  // FETCH FOODS FROM MONGO DATABASE
+  // =============================
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/foods")
+      .then((res) => res.json())
+      .then((data) => {
+        const rawProducts = Array.isArray(data)
+          ? data
+          : data.products || data.foods || data.data || [];
+
+        const targetData = rawProducts.length > 0 ? rawProducts : fallbackFoods;
+
+        // Normalize data format so both MongoDB and fallback items render images correctly
+        const normalized = targetData.map((food) => ({
+          ...food,
+          id: food._id || food.id,
+          // Extract the first image from MongoDB's images array if single 'image' doesn't exist
+          image: food.image || food.images?.[0] || "https://via.placeholder.com/300",
+        }));
+
+        setFoods(normalized);
+      })
+      .catch((err) => {
+        console.warn("Backend API unavailable, using fallback foods dataset:", err);
+        const normalizedFallback = fallbackFoods.map((food) => ({
+          ...food,
+          id: food._id || food.id,
+          image: food.image || food.images?.[0] || "https://via.placeholder.com/300",
+        }));
+        setFoods(normalizedFallback);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // =============================
   // FILTER + SEARCH + SORT
   // =============================
 
@@ -34,12 +73,12 @@ const ExploreFoods = () => {
 
       const categoryMatch =
         activeCategory === "all" ||
-        food.category === activeCategory;
+        food.category?.toLowerCase() === activeCategory.toLowerCase();
 
       const searchText = `
-        ${food.name}
-        ${food.cuisine}
-        ${food.restaurant}
+        ${food.name || ""}
+        ${food.cuisine || ""}
+        ${food.restaurant || ""}
       `.toLowerCase();
 
       const searchMatch =
@@ -54,7 +93,7 @@ const ExploreFoods = () => {
 
     if (sort === "rating") {
       result.sort(
-        (a, b) => b.rating - a.rating
+        (a, b) => (b.rating || 0) - (a.rating || 0)
       );
     }
 
@@ -73,6 +112,7 @@ const ExploreFoods = () => {
     return result;
 
   }, [
+    foods,
     search,
     activeCategory,
     sort,
@@ -200,12 +240,18 @@ const ExploreFoods = () => {
 
         {/* FOODS */}
 
-        <FoodGrid
-          foods={filteredFoods}
-          favorites={favorites}
-          onFavorite={handleFavorite}
-          onAddToCart={handleAddToCart}
-        />
+        {loading ? (
+          <div className="py-16 text-center text-sm font-medium text-gray-500">
+            Loading delicious foods...
+          </div>
+        ) : (
+          <FoodGrid
+            foods={filteredFoods}
+            favorites={favorites}
+            onFavorite={handleFavorite}
+            onAddToCart={handleAddToCart}
+          />
+        )}
 
       </section>
 

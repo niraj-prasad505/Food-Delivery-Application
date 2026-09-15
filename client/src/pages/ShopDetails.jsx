@@ -2,79 +2,64 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Star, Heart, ArrowLeft, Share2 } from "lucide-react";
 
-// Centralized Data Sources
 import { shopsData as MOCK_RESTAURANTS } from "../data/shopsData";
-import { foodsData } from "../data/foodsData";
+import { foodsData as MOCK_FOODS } from "../data/foodsData";
 
 export default function ShopDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [shop, setShop] = useState(null);
+  const [allFoods, setAllFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Menu");
   const [favorite, setFavorite] = useState(false);
   const [cart, setCart] = useState({});
 
-  // Get matching menu items from centralized dataset or fallback to default
-  const shopFoods = foodsData.filter((item) => item.shopId === id);
-  const menuItems = shopFoods.length > 0 ? shopFoods : foodsData;
-
-  // Extract unique categories dynamically from the menu items
-  const categories = Array.from(new Set(menuItems.map((item) => item.category)));
-
-  // Single category state tracking
-  const [activeCategory, setActiveCategory] = useState("");
-
-  // Auto-scroll to top and fetch shop data on load/ID change
   useEffect(() => {
     window.scrollTo(0, 0);
 
-    fetch(`http://localhost:5000/api/shops/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.shop) {
-          setShop(data.shop);
+    // Fetch single shop and all products simultaneously
+    Promise.all([
+      fetch(`http://localhost:5000/api/shops/${id}`).then((res) => res.json()),
+      fetch("http://localhost:5000/api/foods").then((res) => res.json()),
+    ])
+      .then(([shopRes, foodsRes]) => {
+        // Handle shop response
+        if (shopRes.success && shopRes.shop) {
+          setShop(shopRes.shop);
         } else {
-          const found = MOCK_RESTAURANTS.find((r) => r._id === id) || {
-            _id: id,
-            name: "Restaurant Partner",
-            rating: 4.5,
-            reviewsCount: "500+",
-            deliveryTime: "25–35 mins",
-            tags: ["Fast Food"],
-            freeDelivery: true,
-            minOrder: 199,
-            description: "Quality food delivered fast to your doorstep.",
-            banner: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=80",
-            icon: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&q=80",
-            address: "Main City Road",
-          };
-          setShop(found);
+          setShop(MOCK_RESTAURANTS.find((r) => String(r._id || r.id) === String(id)) || MOCK_RESTAURANTS[0]);
         }
-        setLoading(false);
+
+        // Handle foods response
+        const foodsList = Array.isArray(foodsRes) ? foodsRes : foodsRes.products || foodsRes.foods || [];
+        if (foodsList.length > 0) {
+          setAllFoods(foodsList);
+        } else {
+          setAllFoods(MOCK_FOODS);
+        }
       })
-      .catch(() => {
-        const found = MOCK_RESTAURANTS.find((r) => r._id === id) || {
-          _id: id,
-          name: "Restaurant Partner",
-          rating: 4.5,
-          reviewsCount: "500+",
-          deliveryTime: "25–35 mins",
-          tags: ["Fast Food"],
-          freeDelivery: true,
-          minOrder: 199,
-          description: "Quality food delivered fast to your doorstep.",
-          banner: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=80",
-          icon: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&q=80",
-          address: "Main City Road",
-        };
-        setShop(found);
-        setLoading(false);
-      });
+      .catch((err) => {
+        console.warn("API error, using local fallback data:", err);
+        setShop(MOCK_RESTAURANTS.find((r) => String(r._id || r.id) === String(id)) || MOCK_RESTAURANTS[0]);
+        setAllFoods(MOCK_FOODS);
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
-  // Reset default selected category whenever the shop/menu changes
+  // Match menu items connected to this shop ID (handles both MongoDB ObjectId references and mock string IDs)
+  const menuItems = allFoods.filter(
+    (item) =>
+      String(item.shop?._id || item.shop || item.shopId) === String(id)
+  );
+
+  const displayMenuItems = menuItems.length > 0 ? menuItems : allFoods;
+
+  // Extract unique categories dynamically from menu items
+  const categories = Array.from(new Set(displayMenuItems.map((item) => item.category)));
+  const [activeCategory, setActiveCategory] = useState("");
+
   useEffect(() => {
     if (categories.length > 0) {
       setActiveCategory(categories[0]);
@@ -93,8 +78,7 @@ export default function ShopDetails() {
     );
   }
 
-  // Filter items for the selected sidebar category
-  const filteredDishes = menuItems.filter((item) => item.category === activeCategory);
+  const filteredDishes = displayMenuItems.filter((item) => item.category === activeCategory);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-between font-sans">
@@ -113,7 +97,7 @@ export default function ShopDetails() {
         <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 mb-6">
           <div className="h-48 md:h-56 w-full bg-gray-200 relative overflow-hidden">
             <img
-              src={shop.banner}
+              src={shop.banner || shop.images?.[0] || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=80"}
               alt={shop.name}
               className="w-full h-full object-cover"
             />
@@ -124,7 +108,7 @@ export default function ShopDetails() {
               <div className="flex items-end gap-4 -mt-16 mb-2">
                 <div className="w-24 h-24 rounded-full bg-white p-1.5 shadow-md border border-gray-100 overflow-hidden shrink-0">
                   <img
-                    src={shop.icon}
+                    src={shop.icon || shop.banner || "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&q=80"}
                     alt={shop.name}
                     className="w-full h-full object-cover rounded-full"
                   />
@@ -164,12 +148,12 @@ export default function ShopDetails() {
             </div>
 
             <p className="text-xs text-gray-500 mt-3 max-w-xl leading-relaxed">
-              {shop.description}
+              {shop.description || "Quality food delivered fast to your doorstep."}
             </p>
           </div>
         </div>
 
-        {/* Tab Selection Bar (Menu / Reviews / Information) */}
+        {/* Tab Selection Bar */}
         <div className="flex border-b border-gray-200 mb-6 bg-white rounded-2xl px-4 pt-2 shadow-sm">
           {["Menu", "Reviews", "Information"].map((tab) => (
             <button
@@ -214,47 +198,52 @@ export default function ShopDetails() {
                   No items in this category yet.
                 </div>
               ) : (
-                filteredDishes.map((dish) => (
-                  <div
-                    key={dish.id}
-                    onClick={() => navigate(`/food/${dish.id}`)}
-                    className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm border border-gray-100 hover:shadow-md transition-all items-center cursor-pointer"
-                  >
-                    <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                      <img src={dish.image} alt={dish.name} className="w-full h-full object-cover" />
-                    </div>
+                filteredDishes.map((dish) => {
+                  const dishId = dish._id || dish.id;
+                  const dishImage = dish.images?.[0] || dish.image || "https://via.placeholder.com/150";
 
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-base font-bold text-gray-900">{dish.name}</h3>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFavorite(!favorite);
-                          }}
-                          className="text-gray-300 hover:text-red-500 transition-colors"
-                        >
-                          <Heart className="w-4 h-4" />
-                        </button>
+                  return (
+                    <div
+                      key={dishId}
+                      onClick={() => navigate(`/food/${dishId}`)}
+                      className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm border border-gray-100 hover:shadow-md transition-all items-center cursor-pointer"
+                    >
+                      <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                        <img src={dishImage} alt={dish.name} className="w-full h-full object-cover" />
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 leading-normal line-clamp-2">
-                        {dish.description}
-                      </p>
-                      <div className="flex justify-between items-center mt-3">
-                        <span className="text-base font-extrabold text-gray-900">₹{dish.price}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addToCart(dish.id);
-                          }}
-                          className="px-6 py-1.5 bg-[#ff6840] hover:bg-[#e05530] text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95"
-                        >
-                          Add {cart[dish.id] ? `(${cart[dish.id]})` : ""}
-                        </button>
+
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="text-base font-bold text-gray-900">{dish.name}</h3>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFavorite(!favorite);
+                            }}
+                            className="text-gray-300 hover:text-red-500 transition-colors"
+                          >
+                            <Heart className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 leading-normal line-clamp-2">
+                          {dish.description}
+                        </p>
+                        <div className="flex justify-between items-center mt-3">
+                          <span className="text-base font-extrabold text-gray-900">₹{dish.price}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(dishId);
+                            }}
+                            className="px-6 py-1.5 bg-[#ff6840] hover:bg-[#e05530] text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95"
+                          >
+                            Add {cart[dishId] ? `(${cart[dishId]})` : ""}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -263,7 +252,7 @@ export default function ShopDetails() {
         {/* Reviews Tab */}
         {activeTab === "Reviews" && (
           <div className="bg-white rounded-2xl p-8 text-center text-gray-400 text-sm shadow-sm border border-gray-100">
-            ⭐ {shop.rating} average rating out of {shop.reviewsCount} verified customer reviews.
+            ⭐ {shop.rating || 4.5} average rating out of {shop.reviewsCount || "500+"} verified customer reviews.
           </div>
         )}
 
@@ -272,7 +261,7 @@ export default function ShopDetails() {
           <div className="bg-white rounded-2xl p-6 text-sm text-gray-600 space-y-3 shadow-sm border border-gray-100">
             <p><strong>Address:</strong> {shop.address || "Main City Road"}</p>
             <p><strong>Opening Hours:</strong> 10:00 AM – 11:00 PM</p>
-            <p><strong>Contact:</strong> +880 1700-000000</p>
+            <p><strong>Contact:</strong> {shop.phone || "+880 1700-000000"}</p>
           </div>
         )}
       </div>

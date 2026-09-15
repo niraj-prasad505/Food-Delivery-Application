@@ -1,8 +1,9 @@
+// src/pages/Home.jsx
+import { useState, useEffect } from "react";
 import { homeData } from "../data/homeData";
 
-// Centralized Data Sources
+// Fallback Data Sources (Keep while testing API)
 import { shopsData } from "../data/shopsData";
-import { foodsData } from "../data/foodsData";
 
 import HeroSection from "../components/home/HeroSection";
 import NearbyRestaurants from "../components/home/NearbyRestaurants";
@@ -12,14 +13,38 @@ import AdvertisementSlider from "../components/home/AdvertisementSlider";
 import OffersSection from "../components/home/OffersSection";
 import OrderingSteps from "../components/home/OrderingSteps";
 import ServiceBanner from "../components/home/ServiceBanner";
-import FoodTips from "../components/home/FoodTips";
 
 const Home = () => {
+  const [shops, setShops] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!homeData) return <div>Loading...</div>;
+  useEffect(() => {
+    // Fetch live shops directly from MongoDB backend API
+    fetch("http://localhost:5000/api/shops")
+      .then((res) => res.json())
+      .then((data) => {
+        // Support array response or object wrapper { success: true, shops: [...] }
+        const shopList = Array.isArray(data) ? data : data.shops || data.data || [];
+        if (shopList.length > 0) {
+          setShops(shopList);
+        } else {
+          setShops(shopsData); // Fallback to static data if database returns empty
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend API unavailable, falling back to local dataset:", err);
+        setShops(shopsData);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  // Use shopsData for restaurants list; fallback to homeData if needed
-  const displayShops = shopsData.length > 0 ? shopsData : (homeData.nearbyRestaurants || []);
+  if (!homeData || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500 font-medium">
+        Loading SnackDrop...
+      </div>
+    );
+  }
 
   return (
     <main className="space-y-10">
@@ -27,9 +52,9 @@ const Home = () => {
       {/* Hero Banner */}
       <HeroSection hero={homeData.hero} />
 
-      {/* Nearby Restaurants */}
+      {/* Nearby Restaurants (MongoDB dynamic data) */}
       <NearbyRestaurants 
-        restaurants={displayShops} 
+        restaurants={shops} 
       />
 
       {/* Food Categories */}
@@ -38,9 +63,9 @@ const Home = () => {
         filters={homeData.categoryFilters || []}
       />
 
-      {/* Popular Restaurants */}
+      {/* Popular Restaurants (MongoDB dynamic data) */}
       <PopularRestaurants
-        restaurants={displayShops}
+        restaurants={shops}
         filters={homeData.popularRestaurantFilters || []}
       />
 

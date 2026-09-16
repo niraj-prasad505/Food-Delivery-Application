@@ -1,6 +1,9 @@
+// src/pages/ShopDetails.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Star, Heart, ArrowLeft, Share2 } from "lucide-react";
+import { Star, Heart, ArrowLeft, Share2, Plus } from "lucide-react";
+import { useCart } from "../context/CartContext";
+import { useWishlist } from "../context/WishlistContext";
 
 import { shopsData as MOCK_RESTAURANTS } from "../data/shopsData";
 import { foodsData as MOCK_FOODS } from "../data/foodsData";
@@ -9,12 +12,13 @@ export default function ShopDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const { addToCart } = useCart();
+  const { toggleWishlist, isFavorite } = useWishlist();
+
   const [shop, setShop] = useState(null);
   const [allFoods, setAllFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Menu");
-  const [favorite, setFavorite] = useState(false);
-  const [cart, setCart] = useState({});
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -48,7 +52,7 @@ export default function ShopDetails() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Match menu items connected to this shop ID (handles both MongoDB ObjectId references and mock string IDs)
+  // Match menu items connected to this shop ID
   const menuItems = allFoods.filter(
     (item) =>
       String(item.shop?._id || item.shop || item.shopId) === String(id)
@@ -66,10 +70,6 @@ export default function ShopDetails() {
     }
   }, [id, categories.length]);
 
-  const addToCart = (itemId) => {
-    setCart((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
-  };
-
   if (loading || !shop) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500 font-semibold">
@@ -78,6 +78,8 @@ export default function ShopDetails() {
     );
   }
 
+  const shopId = String(shop._id || shop.id || id);
+  const isShopFav = isFavorite(shopId);
   const filteredDishes = displayMenuItems.filter((item) => item.category === activeCategory);
 
   return (
@@ -117,10 +119,11 @@ export default function ShopDetails() {
 
               <div className="flex items-center gap-2 pt-2">
                 <button
-                  onClick={() => setFavorite(!favorite)}
-                  className="p-2.5 rounded-full border border-gray-100 bg-white hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all shadow-sm"
+                  type="button"
+                  onClick={() => toggleWishlist(shop)}
+                  className="p-2.5 rounded-full border border-gray-100 bg-white hover:bg-red-50 text-gray-400 hover:text-[#ff6840] transition-all shadow-sm active:scale-90"
                 >
-                  <Heart className={`w-5 h-5 ${favorite ? "fill-red-500 text-red-500" : ""}`} />
+                  <Heart className={`w-5 h-5 ${isShopFav ? "fill-[#ff6840] text-[#ff6840]" : ""}`} />
                 </button>
                 <button className="p-2.5 rounded-full border border-gray-100 bg-white hover:bg-orange-50 text-gray-400 hover:text-[#ff6840] transition-all shadow-sm">
                   <Share2 className="w-5 h-5" />
@@ -199,30 +202,32 @@ export default function ShopDetails() {
                 </div>
               ) : (
                 filteredDishes.map((dish) => {
-                  const dishId = dish._id || dish.id;
+                  const dishId = String(dish._id || dish.id);
                   const dishImage = dish.images?.[0] || dish.image || "https://via.placeholder.com/150";
+                  const isDishFav = isFavorite(dishId);
 
                   return (
                     <div
                       key={dishId}
                       onClick={() => navigate(`/food/${dishId}`)}
-                      className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm border border-gray-100 hover:shadow-md transition-all items-center cursor-pointer"
+                      className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm border border-gray-100 hover:shadow-md transition-all items-center cursor-pointer group"
                     >
                       <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                        <img src={dishImage} alt={dish.name} className="w-full h-full object-cover" />
+                        <img src={dishImage} alt={dish.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       </div>
 
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <h3 className="text-base font-bold text-gray-900">{dish.name}</h3>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setFavorite(!favorite);
+                              toggleWishlist(dish);
                             }}
-                            className="text-gray-300 hover:text-red-500 transition-colors"
+                            className="p-1 text-gray-300 hover:text-[#ff6840] transition-colors active:scale-90"
                           >
-                            <Heart className="w-4 h-4" />
+                            <Heart className={`w-4 h-4 ${isDishFav ? "fill-[#ff6840] text-[#ff6840]" : ""}`} />
                           </button>
                         </div>
                         <p className="text-xs text-gray-400 mt-1 leading-normal line-clamp-2">
@@ -231,13 +236,14 @@ export default function ShopDetails() {
                         <div className="flex justify-between items-center mt-3">
                           <span className="text-base font-extrabold text-gray-900">₹{dish.price}</span>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              addToCart(dishId);
+                              addToCart(dish, 1);
                             }}
-                            className="px-6 py-1.5 bg-[#ff6840] hover:bg-[#e05530] text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95"
+                            className="flex items-center gap-1 px-5 py-1.5 bg-[#ff6840] hover:bg-[#e05530] text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95"
                           >
-                            Add {cart[dishId] ? `(${cart[dishId]})` : ""}
+                            <Plus className="w-3.5 h-3.5" /> Add
                           </button>
                         </div>
                       </div>

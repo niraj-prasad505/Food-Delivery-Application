@@ -1,12 +1,18 @@
+// src/components/explore/ExploreHero.jsx
 import { Search } from "lucide-react";
 
-const ExploreHero = ({ search, setSearch }) => {
+const ExploreHero = ({ search, setSearch, onSearchSubmit }) => {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (onSearchSubmit) {
+      onSearchSubmit();
+    }
+  };
+
   return (
     <section className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-5 pb-8 pt-14 lg:grid-cols-2 lg:px-8 lg:pt-16">
-
       {/* LEFT */}
       <div>
-
         <p className="mb-3 text-xs font-semibold tracking-[3px] text-[#ff5b3d]">
           GOOD FOOD, BETTER MOOD
         </p>
@@ -23,12 +29,11 @@ const ExploreHero = ({ search, setSearch }) => {
           in your city. Find your next favorite meal, anytime!
         </p>
 
-        {/* SEARCH */}
+        {/* SEARCH FORM */}
         <form
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={handleSubmit}
           className="mt-6 flex h-14 w-full max-w-2xl items-center gap-3 rounded-full border border-gray-200 bg-white p-1.5 pl-5 shadow-[0_8px_25px_rgba(0,0,0,0.07)]"
         >
-
           <Search
             size={22}
             className="shrink-0 text-[#ff5b3d]"
@@ -44,26 +49,22 @@ const ExploreHero = ({ search, setSearch }) => {
 
           <button
             type="submit"
-            className="h-11 rounded-full bg-[#ff5b3d] px-7 font-bold text-white transition hover:bg-[#f45135]"
+            className="h-11 rounded-full bg-[#ff5b3d] px-7 font-bold text-white transition hover:bg-[#f45135] active:scale-95 cursor-pointer"
           >
             Search
           </button>
-          
-
         </form>
-
       </div>
 
       {/* RIGHT */}
       <div className="relative flex min-h-75 items-center justify-center">
-
         {/* Background shape */}
         <div className="absolute h-67.5 w-105 rotate-[-5deg] rounded-[55%_35%_50%_40%] bg-[#fff3ed] sm:h-77.5 sm:w-125" />
 
         {/* Food */}
         <img
           src="https://img.magnific.com/free-photo/pizza-pizza-filled-with-tomatoes-salami-olives_140725-1200.jpg?semt=ais_hybrid&w=740&q=80"
-          alt="Delicious pasta"
+          alt="Delicious pizza"
           className="relative h-57.5 w-57.5 rounded-full border-[6px] border-white object-cover shadow-2xl sm:h-72.5 sm:w-72.5"
         />
 
@@ -75,9 +76,7 @@ const ExploreHero = ({ search, setSearch }) => {
           <br />
           Good Mood
         </div>
-
       </div>
-
     </section>
   );
 };

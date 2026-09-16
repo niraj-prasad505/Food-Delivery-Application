@@ -2,28 +2,27 @@
 import EmptyState from "./EmptyState";
 
 /**
- * Generic table used by every admin page's list view. Renders as a real
- * <table> on tablet/desktop, and switches to stacked cards below the `md`
- * breakpoint so nothing overflows the screen on mobile.
- *
- * columns: [{
- *   key: string,            // property on the row, or a unique key if you supply render
- *   label: string,          // column header / mobile field label
- *   primary?: boolean,      // exactly one column — used as the mobile card title
- *   render?: (row) => node, // custom cell renderer, defaults to row[key]
- *   hideLabel?: boolean,    // don't show "Label:" prefix on mobile (used for actions)
- * }]
- * rows: array of objects, each needs a unique `id`
+ * Generic table used by every admin page's list view.
  */
-export default function DataTable({ columns, rows, emptyTitle = "Nothing here yet", emptyText }) {
+export default function DataTable({
+  columns,
+  rows,
+  emptyTitle = "Nothing here yet",
+  emptyText,
+}) {
   if (!rows || rows.length === 0) {
     return <EmptyState title={emptyTitle} text={emptyText} />;
   }
 
-  const primaryCol = columns.find((c) => c.primary) || columns[0];
-  const restCols = columns.filter((c) => c.key !== primaryCol.key);
+  const primaryCol =
+    columns.find((c) => c.primary) || columns[0];
 
-  const cell = (col, row) => (col.render ? col.render(row) : row[col.key]);
+  const restCols = columns.filter(
+    (c) => c.key !== primaryCol.key
+  );
+
+  const cell = (col, row) =>
+    col.render ? col.render(row) : row[col.key];
 
   return (
     <div>
@@ -42,12 +41,17 @@ export default function DataTable({ columns, rows, emptyTitle = "Nothing here ye
               ))}
             </tr>
           </thead>
+
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50/60">
-                {columns.map((col) => (
-                  <td key={col.key} className="px-3.5 py-3 border-b border-gray-100 align-middle">
-                    {cell(col, row)}
+            {rows.map((row, rowIndex) => (
+              <tr
+                key={row._id || row.id || rowIndex}
+              >
+                {columns.map((column) => (
+                  <td key={column.key}>
+                    {column.render
+                      ? column.render(row)
+                      : row[column.key]}
                   </td>
                 ))}
               </tr>
@@ -58,23 +62,42 @@ export default function DataTable({ columns, rows, emptyTitle = "Nothing here ye
 
       {/* Mobile stacked cards */}
       <div className="md:hidden flex flex-col gap-3">
-        {rows.map((row) => (
-          <div key={row.id} className="border border-gray-100 rounded-xl p-3.5">
-            <div className="mb-2 font-semibold text-gray-900">{cell(primaryCol, row)}</div>
+        {rows.map((row, rowIndex) => (
+          <div
+            key={row._id || row.id || rowIndex}
+            className="border border-gray-100 rounded-xl p-3.5"
+          >
+            <div className="mb-2 font-semibold text-gray-900">
+              {cell(primaryCol, row)}
+            </div>
+
             <div className="flex flex-col gap-2">
               {restCols
                 .filter((col) => col.key !== "actions")
                 .map((col) => (
-                  <div key={col.key} className="flex items-center justify-between gap-3 text-[13px]">
-                    <span className="text-gray-400 font-medium">{col.label}</span>
-                    <span className="text-gray-700 text-right">{cell(col, row)}</span>
+                  <div
+                    key={col.key}
+                    className="flex items-center justify-between gap-3 text-[13px]"
+                  >
+                    <span className="text-gray-400 font-medium">
+                      {col.label}
+                    </span>
+
+                    <span className="text-gray-700 text-right">
+                      {cell(col, row)}
+                    </span>
                   </div>
                 ))}
             </div>
-            {restCols.some((c) => c.key === "actions") && (
+
+            {restCols.some(
+              (c) => c.key === "actions"
+            ) && (
               <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-dashed border-gray-100">
                 {cell(
-                  restCols.find((c) => c.key === "actions"),
+                  restCols.find(
+                    (c) => c.key === "actions"
+                  ),
                   row
                 )}
               </div>

@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const shopSchema = new mongoose.Schema(
     {
-        // One owner can create multiple shops
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Owner",
@@ -20,12 +19,10 @@ const shopSchema = new mongoose.Schema(
             trim: true,
         },
 
-        // Shop logo / profile image
         icon: {
             type: String,
         },
 
-        // Shop gallery
         images: [
             {
                 type: String,
@@ -50,7 +47,6 @@ const shopSchema = new mongoose.Schema(
             trim: true,
         },
 
-        // Added later by owner from the physical shop
         location: {
             type: {
                 type: String,
@@ -61,7 +57,6 @@ const shopSchema = new mongoose.Schema(
             },
         },
 
-        // Maximum delivery distance
         deliveryRadiusKm: {
             type: Number,
             min: 1,
@@ -78,13 +73,17 @@ const shopSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+
+        deletedAt: {
+            type: Date,
+            default: null,
+        },
     },
     {
         timestamps: true,
     }
 );
 
-// Required for MongoDB nearby-location queries
 shopSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("Shop", shopSchema);

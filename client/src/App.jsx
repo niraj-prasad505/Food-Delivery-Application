@@ -10,6 +10,7 @@ import Navbar from "./components/navbar";
 import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
 import Wishlist from "./pages/Wishlist";
+import Checkout from "./pages/Checkout";
 import Footer from "./components/footer";
 import Dashboard from "./pages/admin/Dashboard";
 import Shops from "./pages/admin/Shops";
@@ -37,6 +38,7 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/explore" element={<ExploreFoods />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/profile" element={<Profile />} />
 
         {/* Admin panel */}

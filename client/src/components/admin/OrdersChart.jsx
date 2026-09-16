@@ -9,7 +9,15 @@ import { useState } from "react";
  * charting library you'd rather standardize on.
  */
 export default function OrdersChart({ data }) {
+  
   const [hovered, setHovered] = useState(null);
+  if (!data || data.length === 0) {
+  return (
+    <div className="flex items-center justify-center h-[240px] text-gray-400">
+      No orders data available
+    </div>
+  );
+}
 
   const width = 700;
   const height = 240;

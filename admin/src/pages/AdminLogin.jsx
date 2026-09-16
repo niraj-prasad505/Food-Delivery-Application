@@ -5,10 +5,10 @@ import {
   adminLogin,
   createAdminLoginOtp,
   adminLoginWithOtp,
-} from "../../services/adminAuthService";
+} from "../services/adminAuthService";
 
 // import { useUser } from "../context/UserContext";
-import { useAdmin } from "../../context/AdminContext";
+import { useAdmin } from "../context/AdminContext";
 
 export default function AdminLogin() {
   const navigate = useNavigate();

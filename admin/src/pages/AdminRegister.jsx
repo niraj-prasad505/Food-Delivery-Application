@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   createAdminRegistrationOtp,
   adminRegister,
-} from "../../services/adminAuthService";
+} from "../services/adminAuthService";
 
 export default function AdminRegister() {
   const navigate = useNavigate();

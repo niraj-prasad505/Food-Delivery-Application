@@ -20,15 +20,20 @@ const app = express();
 
 connectDB();
 
-app.use(express.json());
-app.use(cookieParser());
+
 
 app.use(
-    cors({
-        origin: "http://localhost:5173",
-        credentials: true,
-    })
+  cors({
+    origin: [
+      "http://localhost:5173", // Customer
+      "http://localhost:5174", // Admin
+    ],
+    credentials: true,
+  })
 );
+
+app.use(express.json());
+app.use(cookieParser());
 
 const PORT = process.env.PORT || 5000;
 

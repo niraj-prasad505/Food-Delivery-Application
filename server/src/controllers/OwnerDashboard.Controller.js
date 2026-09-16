@@ -4,7 +4,10 @@ const {
 
 const getAdminDashboard = async (req, res) => {
     try {
-        const dashboardData = await getAdminDashboardData();
+        const ownerId = req.owner._id;
+
+        const dashboardData =
+            await getAdminDashboardData(ownerId);
 
         res.status(200).json({
             success: true,
@@ -15,7 +18,7 @@ const getAdminDashboard = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to fetch admin dashboard data",
+            message: "Failed to fetch dashboard data",
         });
     }
 };

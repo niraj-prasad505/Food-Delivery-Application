@@ -1,10 +1,11 @@
-
 import React from "react";
 import ReactDOM from "react-dom/client";
 
 import App from "./App";
 import { UserProvider } from "./context/UserContext";
 import { LocationProvider } from "./context/LocationContext";
+import { CartProvider } from "./context/CartContext";
+import { WishlistProvider } from "./context/WishlistContext";
 
 import "./index.css";
 
@@ -14,8 +15,11 @@ ReactDOM.createRoot(
   <React.StrictMode>
     <UserProvider>
       <LocationProvider>
-        
-          <App />
+        <CartProvider>
+          <WishlistProvider>
+            <App />
+          </WishlistProvider>
+        </CartProvider>
       </LocationProvider>
     </UserProvider>
   </React.StrictMode>

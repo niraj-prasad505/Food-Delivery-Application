@@ -11,10 +11,14 @@ import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
 import Wishlist from "./pages/Wishlist";
+import Checkout from "./pages/Checkout";
+import Footer from "./components/footer";
+
+
 import Profile from "./pages/Profile";
 
 import Navbar from "./components/navbar";
-import Footer from "./components/footer";
+
 
 function App() {
   return (
@@ -42,7 +46,6 @@ function App() {
         <Route path="/explore" element={<ExploreFoods />} />
 
         <Route path="/wishlist" element={<Wishlist />} />
-
         <Route path="/profile" element={<Profile />} />
       </Routes>
 

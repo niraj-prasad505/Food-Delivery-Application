@@ -1,23 +1,26 @@
+// src/pages/ProductDetails.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Star, Heart, ArrowLeft, Plus, Minus, Truck, ShieldCheck, RefreshCw } from "lucide-react";
+import { useCart } from "../context/CartContext";
+import { useWishlist } from "../context/WishlistContext";
 
 import { foodsData as MOCK_FOODS } from "../data/foodsData";
 
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const { toggleWishlist, isFavorite } = useWishlist();
 
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("Description");
-  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
 
-    // 1. Fetch directly from backend MongoDB API first
     fetch(`http://localhost:5000/api/foods/${id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -70,6 +73,8 @@ export default function ProductDetails() {
     );
   }
 
+  const foodId = String(product._id || product.id || id);
+  const favActive = isFavorite(foodId);
   const imagesList = product.images && product.images.length > 0 ? product.images : [selectedImage || product.image];
 
   return (
@@ -97,10 +102,10 @@ export default function ProductDetails() {
                   className="w-full h-full object-cover"
                 />
                 <button
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md text-gray-400 hover:text-red-500 transition-colors"
+                  onClick={() => toggleWishlist(product)}
+                  className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md text-gray-400 hover:text-[#ff6840] transition-colors"
                 >
-                  <Heart className={`w-5 h-5 ${isFavorite ? "fill-red-500 text-red-500" : ""}`} />
+                  <Heart className={`w-5 h-5 ${favActive ? "fill-[#ff6840] text-[#ff6840]" : ""}`} />
                 </button>
               </div>
 
@@ -120,16 +125,16 @@ export default function ProductDetails() {
               </div>
             </div>
 
-            {/* Right Column: Title, Ratings, Pricing, Quantity & CTA */}
+            {/* Right Column */}
             <div className="flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start">
                   <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">{product.name}</h1>
                   <button
-                    onClick={() => setIsFavorite(!isFavorite)}
-                    className="text-gray-400 hover:text-red-500 transition-colors md:hidden"
+                    onClick={() => toggleWishlist(product)}
+                    className="text-gray-400 hover:text-[#ff6840] transition-colors md:hidden"
                   >
-                    <Heart className={`w-6 h-6 ${isFavorite ? "fill-red-500 text-red-500" : ""}`} />
+                    <Heart className={`w-6 h-6 ${favActive ? "fill-[#ff6840] text-[#ff6840]" : ""}`} />
                   </button>
                 </div>
 
@@ -189,17 +194,21 @@ export default function ProductDetails() {
               {/* Action Buttons */}
               <div className="flex gap-3 mt-8">
                 <button
-                  onClick={() => alert(`Added ${quantity} x ${product.name} to SnackDrop cart!`)}
+                  onClick={() => addToCart(product, quantity)}
                   className="flex-1 py-3.5 bg-[#ff6840] hover:bg-[#e05530] text-white font-extrabold text-sm rounded-2xl shadow-md transition-all active:scale-95"
                 >
-                  Add to Cart
+                  Add to Cart ({quantity})
                 </button>
                 <button
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  className="flex items-center gap-2 px-5 py-3.5 border border-red-200 text-red-500 hover:bg-red-50 font-bold text-sm rounded-2xl transition-all"
+                  onClick={() => toggleWishlist(product)}
+                  className={`flex items-center gap-2 px-5 py-3.5 border font-bold text-sm rounded-2xl transition-all ${
+                    favActive
+                      ? "border-[#ff6840] bg-orange-50 text-[#ff6840]"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
                 >
-                  <Heart className={`w-4 h-4 ${isFavorite ? "fill-red-500" : ""}`} />
-                  Add to Wishlist
+                  <Heart className={`w-4 h-4 ${favActive ? "fill-[#ff6840] text-[#ff6840]" : ""}`} />
+                  {favActive ? "In Wishlist" : "Add to Wishlist"}
                 </button>
               </div>
             </div>
@@ -232,7 +241,7 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* Description / Ingredients / Reviews Tabs */}
+          {/* Tabs */}
           <div className="mt-10">
             <div className="flex border-b border-gray-200">
               {["Description", "Ingredients", "Reviews"].map((tab) => (

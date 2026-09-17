@@ -1,3 +1,4 @@
+// src/pages/ExploreFoods.jsx
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronDown, ArrowUpDown, Check, Flame, Star, ArrowUp, ArrowDown } from "lucide-react";
@@ -20,7 +21,9 @@ const ExploreFoods = () => {
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get("search") || "";
 
-  // Master list of all foods fetched from API/Fallback (never filtered directly)
+  // Target ref for smooth scrolling to results
+  const resultsRef = useRef(null);
+
   const [allFoods, setAllFoods] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,12 +37,35 @@ const ExploreFoods = () => {
   const [favorites, setFavorites] = useState(new Set());
   const [cartItems, setCartItems] = useState([]);
 
-  // Sync state if URL search query changes dynamically
+  // Auto-scroll ONLY when redirected from Home page search bar (/explore?search=pizza)
   useEffect(() => {
     if (urlQuery) {
       setSearch(urlQuery);
+      setActiveCategory("all");
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 150);
     }
   }, [urlQuery]);
+
+  // Typing Handler: Filters live quietly without scrolling the screen
+  const handleSearchChange = (newQuery) => {
+    setSearch(newQuery);
+    if (newQuery.trim() !== "") {
+      setActiveCategory("all");
+    }
+  };
+
+  // Search Button Click Handler: Scrolls smoothly down to results grid
+  const handleSearchSubmit = () => {
+    resultsRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Category Pill Click Handler
+  const handleCategorySelect = (category) => {
+    setActiveCategory(category);
+    setSearch("");
+  };
 
   // Close sort dropdown on click outside
   useEffect(() => {
@@ -83,33 +109,33 @@ const ExploreFoods = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Filter & Search (Always filters against master `allFoods` list)
+  // Filter & Search Logic
   const filteredFoods = useMemo(() => {
-    let result = allFoods.filter((food) => {
+    return allFoods.filter((food) => {
       const categoryMatch =
         activeCategory === "all" ||
         food.category?.toLowerCase() === activeCategory.toLowerCase();
 
-      const searchText = `
-        ${food.name || ""}
-        ${food.cuisine || ""}
-        ${food.category || ""}
-      `.toLowerCase();
-
-      const searchMatch = searchText.includes(search.toLowerCase().trim());
+      const query = search.toLowerCase().trim();
+      const searchMatch =
+        !query ||
+        food.name?.toLowerCase().includes(query) ||
+        food.cuisine?.toLowerCase().includes(query) ||
+        food.category?.toLowerCase().includes(query);
 
       return categoryMatch && searchMatch;
+    }).sort((a, b) => {
+      if (sort === "rating" || sort === "popularity") {
+        return (b.rating || 0) - (a.rating || 0);
+      }
+      if (sort === "price-low") {
+        return (a.price || 0) - (b.price || 0);
+      }
+      if (sort === "price-high") {
+        return (b.price || 0) - (a.price || 0);
+      }
+      return 0;
     });
-
-    if (sort === "rating" || sort === "popularity") {
-      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    } else if (sort === "price-low") {
-      result.sort((a, b) => (a.price || 0) - (b.price || 0));
-    } else if (sort === "price-high") {
-      result.sort((a, b) => (b.price || 0) - (a.price || 0));
-    }
-
-    return result;
   }, [allFoods, search, activeCategory, sort]);
 
   const handleFavorite = (id) => {
@@ -132,15 +158,22 @@ const ExploreFoods = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <ExploreHero search={search} setSearch={setSearch} />
+      {/* HERO SECTION */}
+      <ExploreHero
+        search={search}
+        setSearch={handleSearchChange}
+        onSearchSubmit={handleSearchSubmit}
+      />
 
       <section className="mx-auto max-w-7xl px-5 pb-16 lg:px-8">
+        {/* CATEGORY FILTER */}
         <CategoryFilter
           activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
+          setActiveCategory={handleCategorySelect}
         />
 
-        <div className="mb-5 mt-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        {/* TARGET SCROLL ANCHOR */}
+        <div ref={resultsRef} className="mb-5 mt-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
               Popular Foods
@@ -210,12 +243,6 @@ const ExploreFoods = () => {
           />
         )}
       </section>
-
-      {cartItems.length > 0 && (
-        <div className="fixed bottom-5 right-5 z-50 rounded-full bg-[#17191c] px-5 py-3 text-sm font-semibold text-white shadow-xl">
-          🛒 {cartItems.length} item{cartItems.length > 1 ? "s" : ""}
-        </div>
-      )}
     </div>
   );
 };

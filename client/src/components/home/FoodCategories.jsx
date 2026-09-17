@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Star, Plus } from "lucide-react";
+import { useCart } from "../../context/CartContext";
 
 // Centralized Foods & Categories Data Source
 import { categories, foodsData } from "../../data/foodsData";
@@ -9,10 +10,9 @@ import { categories, foodsData } from "../../data/foodsData";
 const FoodCategories = () => {
   const [activeCategory, setActiveCategory] = useState("all");
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
-  // Dynamic filter logic:
-  // 1. If "all", pick up to 2 top dishes per category for a balanced sample across all foods
-  // 2. If a specific category, show ONLY items matching that category
+  // Dynamic filter logic
   const filteredFoods = useMemo(() => {
     if (activeCategory === "all") {
       const categoryCounts = {};
@@ -28,7 +28,6 @@ const FoodCategories = () => {
       return result;
     }
 
-    // Specific category selected (e.g., "pizza", "burger", "biryani")
     return foodsData.filter((item) => item.category === activeCategory);
   }, [activeCategory]);
 
@@ -73,68 +72,71 @@ const FoodCategories = () => {
               No popular items found in this category.
             </div>
           ) : (
-            filteredFoods.map((food) => (
-              <div
-                key={food.id}
-                onClick={() => navigate(`/food/${food.id}`)}
-                className="w-64 sm:w-72 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer flex flex-col justify-between"
-              >
-                {/* Food Image */}
-                <div className="relative w-full h-40 rounded-xl overflow-hidden bg-gray-100 mb-3">
-                  <img
-                    src={food.image}
-                    alt={food.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {food.discount && (
-                    <span className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                      {food.discount}
-                    </span>
-                  )}
-                </div>
-
-                {/* Food Details */}
-                <div>
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate max-w-42.5">
-                      {food.name}
-                    </h3>
-                    <span className="flex items-center gap-1 text-xs font-bold text-amber-500 shrink-0">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
-                      {food.rating || 4.5}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">
-                    {food.restaurant}
-                  </p>
-                </div>
-
-                {/* Price & Action Button */}
-                <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-50">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base font-extrabold text-[#FF6840]">
-                      ₹{food.price}
-                    </span>
-                    {food.originalPrice && (
-                      <span className="text-xs text-gray-400 line-through">
-                        ₹{food.originalPrice}
+            filteredFoods.map((food) => {
+              const foodId = food.id || food._id;
+              return (
+                <div
+                  key={foodId}
+                  onClick={() => navigate(`/food/${foodId}`)}
+                  className="w-64 sm:w-72 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer flex flex-col justify-between"
+                >
+                  {/* Food Image */}
+                  <div className="relative w-full h-40 rounded-xl overflow-hidden bg-gray-100 mb-3">
+                    <img
+                      src={food.image}
+                      alt={food.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {food.discount && (
+                      <span className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        {food.discount}
                       </span>
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/food/${food.id}`);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-[#FF6840] hover:bg-[#FF6840] hover:text-white text-xs font-bold rounded-xl transition-all border border-orange-100"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> View
-                  </button>
+                  {/* Food Details */}
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate max-w-42.5">
+                        {food.name}
+                      </h3>
+                      <span className="flex items-center gap-1 text-xs font-bold text-amber-500 shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
+                        {food.rating || 4.5}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      {food.restaurant}
+                    </p>
+                  </div>
+
+                  {/* Price & Action Button */}
+                  <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-50">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-base font-extrabold text-[#FF6840]">
+                        ₹{food.price}
+                      </span>
+                      {food.originalPrice && (
+                        <span className="text-xs text-gray-400 line-through">
+                          ₹{food.originalPrice}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevents navigating to product details page
+                        addToCart(food, 1);
+                      }}
+                      className="flex items-center gap-1 px-3.5 py-1.5 bg-[#FF6840] hover:bg-[#e05530] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

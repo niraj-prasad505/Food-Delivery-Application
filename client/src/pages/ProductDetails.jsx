@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Star, Heart, ArrowLeft, Plus, Minus, Truck, ShieldCheck, RefreshCw } from "lucide-react";
 
-// Centralized Data Source
-import { foodsData } from "../data/foodsData";
+import { foodsData as MOCK_FOODS } from "../data/foodsData";
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -18,50 +17,49 @@ export default function ProductDetails() {
   useEffect(() => {
     window.scrollTo(0, 0);
 
-    // 1. Check centralized dataset first
-    const foundProduct = foodsData.find((item) => String(item.id) === String(id));
+    // 1. Fetch directly from backend MongoDB API first
+    fetch(`http://localhost:5000/api/foods/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.product) {
+          setProduct(data.product);
+          setSelectedImage(data.product.images?.[0] || data.product.image);
+        } else {
+          fallbackToMock(id);
+        }
+      })
+      .catch(() => {
+        fallbackToMock(id);
+      });
+  }, [id]);
+
+  const fallbackToMock = (productId) => {
+    const foundProduct = MOCK_FOODS.find((item) => String(item.id || item._id) === String(productId));
 
     if (foundProduct) {
       setProduct(foundProduct);
       setSelectedImage(foundProduct.image || foundProduct.images?.[0]);
     } else {
-      // 2. Fallback to API call or dynamic fallback generation
-      fetch(`http://localhost:5000/api/foods/${id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.product) {
-            setProduct(data.product);
-            setSelectedImage(data.product.images?.[0] || data.product.image);
-          } else {
-            createFallbackProduct(id);
-          }
-        })
-        .catch(() => {
-          createFallbackProduct(id);
-        });
+      const fallback = {
+        _id: productId,
+        name: "Delicious Gourmet Dish",
+        rating: 4.5,
+        reviewsCount: "500+",
+        price: 199,
+        originalPrice: 249,
+        discount: "20% OFF",
+        description: "Made fresh on order with high quality ingredients by top local chefs.",
+        longDescription: "Experience delicious taste with authentic flavors, packed with care and delivered fast through SnackDrop.",
+        images: [
+          "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80",
+          "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80"
+        ],
+        ingredients: "Fresh Herbs, Signature Spices, Premium Veggies/Proteins.",
+        reviews: "⭐ 4.5 rating based on customer feedback."
+      };
+      setProduct(fallback);
+      setSelectedImage(fallback.images[0]);
     }
-  }, [id]);
-
-  const createFallbackProduct = (productId) => {
-    const fallback = {
-      id: productId,
-      name: "Delicious Gourmet Dish",
-      rating: 4.5,
-      reviewsCount: "500+",
-      price: 199,
-      originalPrice: 249,
-      discount: "20% OFF",
-      description: "Made fresh on order with high quality ingredients by top local chefs.",
-      longDescription: "Experience delicious taste with authentic flavors, packed with care and delivered fast through SnackDrop.",
-      images: [
-        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80",
-        "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80"
-      ],
-      ingredients: "Fresh Herbs, Signature Spices, Premium Veggies/Proteins.",
-      reviews: "⭐ 4.5 rating based on customer feedback."
-    };
-    setProduct(fallback);
-    setSelectedImage(fallback.images[0]);
   };
 
   if (!product) {
@@ -71,6 +69,8 @@ export default function ProductDetails() {
       </div>
     );
   }
+
+  const imagesList = product.images && product.images.length > 0 ? product.images : [selectedImage || product.image];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-between font-sans">
@@ -92,7 +92,7 @@ export default function ProductDetails() {
             <div>
               <div className="relative w-full h-72 md:h-80 rounded-2xl overflow-hidden bg-gray-100 mb-4 border border-gray-100">
                 <img
-                  src={selectedImage}
+                  src={selectedImage || imagesList[0]}
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />
@@ -106,7 +106,7 @@ export default function ProductDetails() {
 
               {/* Thumbnails */}
               <div className="flex gap-3 overflow-x-auto pb-1">
-                {(product.images || [selectedImage]).map((img, idx) => (
+                {imagesList.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(img)}
@@ -136,8 +136,8 @@ export default function ProductDetails() {
                 {/* Ratings */}
                 <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 mt-2">
                   <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="text-gray-900 font-bold">{product.rating}</span>
-                  <span className="text-gray-400">({product.reviewsCount} reviews)</span>
+                  <span className="text-gray-900 font-bold">{product.rating || 4.5}</span>
+                  <span className="text-gray-400">({product.reviewCount || product.reviewsCount || "500+"} reviews)</span>
                 </div>
 
                 {/* Price Section */}
@@ -145,11 +145,11 @@ export default function ProductDetails() {
                   <span className="text-2xl md:text-3xl font-extrabold text-[#ff6840]">
                     ₹{product.price}
                   </span>
-                  {product.originalPrice && (
+                  {product.originalPrice ? (
                     <span className="text-base font-semibold text-gray-400 line-through">
                       ₹{product.originalPrice}
                     </span>
-                  )}
+                  ) : null}
                   {product.discount && (
                     <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">
                       {product.discount}
@@ -252,8 +252,8 @@ export default function ProductDetails() {
 
             <div className="py-6 text-xs md:text-sm text-gray-600 leading-relaxed">
               {activeTab === "Description" && <p>{product.longDescription || product.description}</p>}
-              {activeTab === "Ingredients" && <p>{product.ingredients}</p>}
-              {activeTab === "Reviews" && <p>{product.reviews}</p>}
+              {activeTab === "Ingredients" && <p>{product.ingredients || "Fresh ingredients sourced locally."}</p>}
+              {activeTab === "Reviews" && <p>{product.reviews || `⭐ ${product.rating || 4.5} rating based on customer feedback.`}</p>}
             </div>
           </div>
         </div>

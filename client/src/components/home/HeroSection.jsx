@@ -10,12 +10,13 @@ const HeroSection = ({ hero }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmed = query.trim();
-    navigate(trimmed ? `/foods?search=${encodeURIComponent(trimmed)}` : "/foods");
+    // Navigates directly to /explore so ExploreFoods pre-loads the query
+    navigate(trimmed ? `/explore?search=${encodeURIComponent(trimmed)}` : "/explore");
   };
 
   const handleSuggestedClick = (term) => {
     setQuery(term);
-    navigate(`/foods?search=${encodeURIComponent(term)}`);
+    navigate(`/explore?search=${encodeURIComponent(term)}`);
   };
 
   return (

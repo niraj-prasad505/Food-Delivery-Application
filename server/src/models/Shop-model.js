@@ -5,7 +5,7 @@ const shopSchema = new mongoose.Schema(
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Owner",
-            required: true,
+            required: false,
         },
 
         name: {
@@ -17,10 +17,18 @@ const shopSchema = new mongoose.Schema(
         description: {
             type: String,
             trim: true,
+            default: "",
         },
 
         icon: {
             type: String,
+            default: "",
+        },
+
+        // Friend's client feature
+        banner: {
+            type: String,
+            default: "",
         },
 
         images: [
@@ -31,8 +39,8 @@ const shopSchema = new mongoose.Schema(
 
         phone: {
             type: String,
-            required: true,
             trim: true,
+            default: "+880 1700-000000",
         },
 
         address: {
@@ -47,13 +55,52 @@ const shopSchema = new mongoose.Schema(
             trim: true,
         },
 
+        // Friend's client features
+        tags: [
+            {
+                type: String,
+            },
+        ],
+
+        rating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5,
+        },
+
+        reviewsCount: {
+            type: Number,
+            default: 0,
+        },
+
+        deliveryTime: {
+            type: String,
+            default: "20–30 mins",
+        },
+
+        minOrder: {
+            type: Number,
+            default: 199,
+            min: 0,
+        },
+
+        freeDelivery: {
+            type: Boolean,
+            default: true,
+        },
+
+        // Location / delivery feature
         location: {
             type: {
                 type: String,
                 enum: ["Point"],
+                default: "Point",
             },
+
             coordinates: {
                 type: [Number],
+                default: [91.8687, 24.8949],
             },
         },
 
@@ -61,7 +108,7 @@ const shopSchema = new mongoose.Schema(
             type: Number,
             min: 1,
             max: 50,
-            default: 5,
+            default: 10,
         },
 
         isOpen: {
@@ -86,4 +133,6 @@ const shopSchema = new mongoose.Schema(
 
 shopSchema.index({ location: "2dsphere" });
 
-module.exports = mongoose.model("Shop", shopSchema);
+module.exports =
+    mongoose.models.Shop ||
+    mongoose.model("Shop", shopSchema);

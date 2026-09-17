@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 
 const connectDB = require("./config/db");
 
+// Existing Routes
 const userRouter = require("./routes/userRouter");
 const ownerRouter = require("./routes/ownerRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
@@ -13,23 +14,29 @@ const ownershopRoutes = require("./routes/ownerShopRoutes");
 const cartRoutes = require("./routes/userCartRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 
-// Admin
+// Admin Routes
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
+
+// New Public Customer Routes
+const shopRoutes = require("./routes/shopRoutes");
+const productRoutes = require("./routes/productRoutes");
 
 const app = express();
 
 connectDB();
 
-
+// --------------------
+// Middleware
+// --------------------
 
 app.use(
-  cors({
-    origin: [
-      "http://localhost:5173", // Customer
-      "http://localhost:5174", // Admin
-    ],
-    credentials: true,
-  })
+    cors({
+        origin: [
+            "http://localhost:5173", // Customer
+            "http://localhost:5174", // Admin
+        ],
+        credentials: true,
+    })
 );
 
 app.use(express.json());
@@ -53,16 +60,32 @@ app.get("/api/health", (req, res) => {
 });
 
 // --------------------
-// Application Routes
+// User Routes
 // --------------------
 
 app.use("/api/users", userRouter);
 
+// --------------------
+// Owner Routes
+// --------------------
+
 app.use("/api/owner-auth", ownerRouter);
+
+// --------------------
+// Review Routes
+// --------------------
 
 app.use("/api/reviews", reviewRoutes);
 
-app.use("/api/shops", ownershopRoutes);
+// --------------------
+// Owner Shop Management
+// --------------------
+
+app.use("/api/owner/shops", ownershopRoutes);
+
+// --------------------
+// Cart & Wishlist
+// --------------------
 
 app.use("/api/cart", cartRoutes);
 
@@ -73,6 +96,14 @@ app.use("/api/wishlist", wishlistRoutes);
 // --------------------
 
 app.use("/api/admin", adminDashboardRoutes);
+
+// --------------------
+// Public Customer Routes
+// --------------------
+
+app.use("/api/shops", shopRoutes);
+
+app.use("/api/foods", productRoutes);
 
 // --------------------
 // Start Server

@@ -2,37 +2,47 @@ const Order = require("../models/Order-model");
 const Shop = require("../models/Shop-model");
 const Product = require("../models/Product-model");
 
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
 /**
- * Helper to generate an array of last N day labels in "DD MMM" format
+ * Deterministic helper to match MongoDB's `%d %b` format (e.g., "17 Sep")
  */
 const getLastDaysLabels = (daysCount = 7) => {
   const result = [];
   for (let i = daysCount - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    result.push(
-      d.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        timeZone: "Asia/Kolkata",
-      })
-    );
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = MONTHS[d.getMonth()];
+    result.push(`${day} ${month}`);
   }
   return result;
 };
 
 const getAdminDashboardData = async (ownerId) => {
-  // 1. Find all shops belonging to this owner
-  const shops = await Shop.find({ owner: ownerId }).select("_id name");
-  const shopIds = shops.map((s) => s._id);
+  if (!ownerId) {
+    throw new Error("Owner ID is required to fetch dashboard data");
+  }
 
-  // If the owner does not have any shops yet, return safe initial defaults
-  if (shopIds.length === 0) {
+  // 1. Fetch only active, non-deleted shops belonging to this owner
+  const shops = await Shop.find({ 
+    owner: ownerId, 
+    deletedAt: null 
+  }).select("_id name");
+
+  const shopIds = shops.map((s) => s._id);
+  const totalShops = shops.length;
+
+  // Safe fallback if owner has no registered shops yet
+  if (totalShops === 0) {
     return {
       stats: {
-        orders: { value: 0, change: "+0%", isPositive: true },
-        shops: { value: 0, change: "+0%", isPositive: true },
-        products: { value: 0, change: "+0%", isPositive: true },
+        orders: { value: "0", change: "+0%", isPositive: true },
+        shops: { value: "0", change: "+0%", isPositive: true },
+        products: { value: "0", change: "+0%", isPositive: true },
         revenue: { value: "₹0", change: "+0%", isPositive: true },
       },
       ordersOverview: getLastDaysLabels(7).map((label) => ({ label, value: 0 })),
@@ -48,7 +58,6 @@ const getAdminDashboardData = async (ownerId) => {
   // 2. Parallel Database Operations
   const [
     totalOrders,
-    totalShops,
     totalProducts,
     revenueResult,
     ordersLast7Days,
@@ -57,34 +66,31 @@ const getAdminDashboardData = async (ownerId) => {
     recentOrdersDocs,
     topProductsAgg,
   ] = await Promise.all([
-    // Total orders across owner's shops
+    // Total orders across non-deleted shops
     Order.countDocuments({ shop: { $in: shopIds } }),
-
-    // Total shops owned (Fixed field from "shop" to "owner")
-    Shop.countDocuments({ owner: ownerId }),
 
     // Total products listed in owner's shops
     Product.countDocuments({ shop: { $in: shopIds } }),
 
-    // Total lifetime revenue
+    // Total lifetime revenue (excluding cancelled orders)
     Order.aggregate([
       { $match: { shop: { $in: shopIds }, status: { $ne: "cancelled" } } },
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]),
 
-    // Orders placed in the current 7 days (for % comparison)
+    // Orders placed in current 7 days
     Order.countDocuments({
       shop: { $in: shopIds },
       createdAt: { $gte: sevenDaysAgo },
     }),
 
-    // Orders placed in the previous 7-14 days
+    // Orders placed in previous 7–14 days (for growth %)
     Order.countDocuments({
       shop: { $in: shopIds },
       createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo },
     }),
 
-    // 7-day Daily Breakdown for Chart
+    // 7-Day daily order volume breakdown
     Order.aggregate([
       {
         $match: {
@@ -106,7 +112,7 @@ const getAdminDashboardData = async (ownerId) => {
       },
     ]),
 
-    // 5 Most Recent Orders (Populated)
+    // 5 Most recent orders
     Order.find({ shop: { $in: shopIds } })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -114,7 +120,7 @@ const getAdminDashboardData = async (ownerId) => {
       .populate("shop", "name")
       .lean(),
 
-    // Top 5 Products by Sales / Quantity
+    // Top 5 products by quantity sold
     Order.aggregate([
       { $match: { shop: { $in: shopIds }, status: { $ne: "cancelled" } } },
       { $unwind: "$items" },
@@ -147,20 +153,23 @@ const getAdminDashboardData = async (ownerId) => {
     ]),
   ]);
 
-  // 3. Calculate Formatted Metric Values
+  // 3. Format Lifetime Revenue
   const rawRevenue = revenueResult[0]?.total || 0;
   const formattedRevenue =
     rawRevenue >= 100000
       ? `₹${(rawRevenue / 100000).toFixed(2)}L`
       : `₹${rawRevenue.toLocaleString("en-IN")}`;
 
-  // Orders percentage change
-  const orderGrowth =
-    ordersPrev7Days > 0
-      ? (((ordersLast7Days - ordersPrev7Days) / ordersPrev7Days) * 100).toFixed(1)
-      : "+100";
+  // 4. Calculate Orders % Growth
+  let orderGrowth = "+0.0";
+  if (ordersPrev7Days > 0) {
+    const diff = ((ordersLast7Days - ordersPrev7Days) / ordersPrev7Days) * 100;
+    orderGrowth = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}`;
+  } else if (ordersLast7Days > 0) {
+    orderGrowth = "+100.0";
+  }
 
-  // 4. Fill Zeroes in Chart Data for Missing Days
+  // 5. Zero-fill 7-day Chart Data
   const chartLabels = getLastDaysLabels(7);
   const chartMap = new Map();
   ordersOverviewAgg.forEach((item) => chartMap.set(item._id, item.count));
@@ -170,7 +179,7 @@ const getAdminDashboardData = async (ownerId) => {
     value: chartMap.get(label) || 0,
   }));
 
-  // 5. Format Recent Orders
+  // 6. Format Recent Orders
   const formattedRecentOrders = recentOrdersDocs.map((ord) => ({
     id: `#${ord._id.toString().slice(-5).toUpperCase()}`,
     originalId: ord._id,
@@ -182,14 +191,14 @@ const getAdminDashboardData = async (ownerId) => {
     paymentStatus: ord.paymentStatus,
   }));
 
-  // 6. Format Top Products (Fallback to Product catalogue if zero orders)
+  // 7. Format Top Products (with fallback to catalog items if 0 sales yet)
   let formattedTopProducts = [];
   if (topProductsAgg.length > 0) {
     formattedTopProducts = topProductsAgg.map((prod, index) => ({
       id: index + 1,
       productId: prod._id,
       name: prod.name,
-      category: prod.productDetails?.category || "Food",
+      category: prod.productDetails?.category || "General",
       orders: prod.ordersCount,
       revenue: `₹${prod.revenue.toLocaleString("en-IN")}`,
       status:
@@ -198,7 +207,6 @@ const getAdminDashboardData = async (ownerId) => {
           : "Inactive",
     }));
   } else {
-    // If store is newly set up with zero orders, show top products by rating
     const catalogProducts = await Product.find({ shop: { $in: shopIds } })
       .sort({ rating: -1 })
       .limit(5)
@@ -208,7 +216,7 @@ const getAdminDashboardData = async (ownerId) => {
       id: index + 1,
       productId: p._id,
       name: p.name,
-      category: p.category,
+      category: p.category || "General",
       orders: 0,
       revenue: `₹${p.price.toLocaleString("en-IN")}`,
       status: p.stock > 0 ? "Active" : "Inactive",
@@ -219,22 +227,22 @@ const getAdminDashboardData = async (ownerId) => {
     stats: {
       orders: {
         value: totalOrders.toLocaleString("en-IN"),
-        change: `${Number(orderGrowth) >= 0 ? "+" : ""}${orderGrowth}%`,
-        isPositive: Number(orderGrowth) >= 0,
+        change: `${orderGrowth}%`,
+        isPositive: !orderGrowth.startsWith("-"),
       },
       shops: {
         value: totalShops.toLocaleString("en-IN"),
-        change: "+5%",
+        change: "+0%",
         isPositive: true,
       },
       products: {
         value: totalProducts.toLocaleString("en-IN"),
-        change: "+12%",
+        change: "+0%",
         isPositive: true,
       },
       revenue: {
         value: formattedRevenue,
-        change: "+15%",
+        change: "+0%",
         isPositive: true,
       },
     },

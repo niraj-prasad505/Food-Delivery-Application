@@ -16,6 +16,9 @@ const wishlistRoutes = require("./routes/wishlistRoutes");
 // Admin Routes
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const AdminShopRoutes = require("./routes/adminShopRoutes");
+const adminProductRoutes = require("./routes/adminProductRoutes");
+
+
 
 
 // New Public Customer Routes
@@ -71,6 +74,7 @@ app.use("/api/reviews", reviewRoutes);
 // Owner Shop Management
 
 app.use("/api/owner/shops", AdminShopRoutes);
+app.use("/api/owner/products", adminProductRoutes);
 
 // Cart & Wishlist
 

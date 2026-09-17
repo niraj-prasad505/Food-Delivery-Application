@@ -1,172 +1,237 @@
-import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import sparklesIcon from "../assets/snackdrop-icon.png";
+import icon from "../assets/icon.png";
 
 import {
   LayoutDashboard,
   Store,
   Package,
-  ShoppingCart,
+  ShoppingBag,
   Star,
   IndianRupee,
   Settings,
   LogOut,
   Menu,
   X,
+  ChevronRight,
 } from "lucide-react";
+import { useAdmin } from "../context/AdminContext";
 
-const menuItems = [
+const NAV_GROUPS = [
   {
-    name: "Dashboard",
-    path: "/",
-    icon: LayoutDashboard,
+    label: "Main",
+    items: [
+      { name: "Dashboard", path: "/", icon: LayoutDashboard },
+      { name: "Shops", path: "/shops", icon: Store },
+      { name: "Products", path: "/products", icon: Package },
+      { name: "Orders", path: "/orders", icon: ShoppingBag },
+    ],
   },
   {
-    name: "Shops",
-    path: "/shops",
-    icon: Store,
+    label: "Analytics & Feedback",
+    items: [
+      { name: "Reviews", path: "/reviews", icon: Star },
+      { name: "Revenue", path: "/revenue", icon: IndianRupee },
+    ],
   },
   {
-    name: "Products",
-    path: "/products",
-    icon: Package,
-  },
-  {
-    name: "Orders",
-    path: "/orders",
-    icon: ShoppingCart,
-  },
-  {
-    name: "Reviews",
-    path: "/reviews",
-    icon: Star,
-  },
-  {
-    name: "Revenue",
-    path: "/revenue",
-    icon: IndianRupee,
-  },
-  {
-    name: "Settings",
-    path: "/settings",
-    icon: Settings,
+    label: "System",
+    items: [{ name: "Settings", path: "/settings", icon: Settings }],
   },
 ];
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { admin, logout } = useAdmin();
 
-  const handleLogout = () => {
+  // Prevent background scroll when mobile sidebar is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
+  // Close sidebar automatically on route change
+  useEffect(() => {
     setIsOpen(false);
-    navigate("/login");
+  }, [location.pathname]);
+
+  const handleLogout = async () => {
+    setIsOpen(false);
+    if (logout) {
+      await logout();
+    }
+    navigate("/admin/login");
   };
+
+  const adminName = admin?.name || admin?.username || "Admin";
+  const avatarLetter = adminName.charAt(0).toUpperCase();
 
   return (
     <>
-      {/* ================= MOBILE HEADER ================= */}
-
-      <div className="fixed top-0 left-0 right-0 z-30 flex h-16 items-center justify-between bg-white px-4 shadow-sm lg:hidden">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">
-            Snack<span className="text-orange-500">Drop</span>
-          </h1>
-
-          <p className="text-[10px] text-gray-400">
-            Admin Panel
-          </p>
+      {/* ================= MOBILE TOP APP BAR ================= */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md lg:hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 p-1.5 shadow-xs overflow-hidden">
+            <img
+              src={sparklesIcon}
+              alt="SnackDrop Icon"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <div className="flex flex-col">
+            <img
+              src={icon}
+              alt="SnackDrop"
+              className="h-5 max-w-[130px] object-contain object-left"
+            />
+            <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mt-0.5">
+              Partner Hub
+            </span>
+          </div>
         </div>
 
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          className="rounded-lg p-2 text-gray-700 hover:bg-gray-100"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/80 text-slate-600 hover:bg-slate-50 active:scale-95 transition"
           aria-label="Open menu"
         >
-          <Menu size={24} />
+          <Menu size={20} />
         </button>
       </div>
 
-      {/* ================= OVERLAY ================= */}
-
+      {/* ================= BACKDROP OVERLAY ================= */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300 lg:hidden"
           onClick={() => setIsOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       {/* ================= SIDEBAR ================= */}
-
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50
-          flex w-64 flex-col bg-white
-          transition-transform duration-300 ease-in-out
-
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
-
-          lg:translate-x-0
-        `}
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200/80 bg-white transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+        }`}
       >
-        {/* ================= LOGO ================= */}
-
-        <div className="flex h-20 shrink-0 items-center justify-between px-6">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Snack<span className="text-orange-500">Drop</span>
-            </h1>
-
-            <p className="text-xs text-gray-400">
-              Admin Panel
-            </p>
+        {/* Brand Header */}
+        <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600 p-2 shadow-md shadow-orange-500/20 overflow-hidden">
+              <img
+                src={sparklesIcon}
+                alt="SnackDrop Icon"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="flex flex-col">
+              <img
+                src={icon}
+                alt="SnackDrop"
+                className="h-6 max-w-[140px] object-contain object-left"
+              />
+              <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase mt-0.5">
+                Merchant Portal
+              </span>
+            </div>
           </div>
 
-          {/* Mobile Close */}
           <button
+            type="button"
             onClick={() => setIsOpen(false)}
-            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 lg:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition lg:hidden"
             aria-label="Close menu"
           >
-            <X size={22} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* ================= NAVIGATION ================= */}
+        {/* Navigation Links */}
+        <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-1">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                {group.label}
+              </p>
 
-        <nav className="flex-1 overflow-y-auto px-4 py-4">
-          <div className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === "/"}
+                    className={({ isActive }) =>
+                      `group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all duration-150 ${
+                        isActive
+                          ? "bg-orange-500 text-white shadow-sm shadow-orange-500/25"
+                          : "text-slate-600 hover:bg-orange-50/70 hover:text-orange-600"
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <Icon
+                            size={18}
+                            strokeWidth={2.2}
+                            className={`transition-colors ${
+                              isActive
+                                ? "text-white"
+                                : "text-slate-400 group-hover:text-orange-500"
+                            }`}
+                          />
+                          <span>{item.name}</span>
+                        </div>
 
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-orange-500 text-white"
-                        : "text-gray-600 hover:bg-orange-50 hover:text-orange-500"
-                    }`
-                  }
-                >
-                  <Icon size={20} />
-                  <span>{item.name}</span>
-                </NavLink>
-              );
-            })}
-          </div>
+                        {isActive && (
+                          <ChevronRight
+                            size={14}
+                            className="text-white/80"
+                          />
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* ================= LOGOUT ================= */}
+        {/* User Badge & Logout Section */}
+        <div className="shrink-0 p-4 border-t border-slate-100 bg-slate-50/50 space-y-3">
+          <div className="flex items-center gap-3 px-2 py-1.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-600 font-bold text-white text-xs shadow-xs">
+              {avatarLetter}
+            </div>
+            <div className="overflow-hidden">
+              <p className="truncate text-xs font-bold text-slate-800 leading-tight">
+                {adminName}
+              </p>
+              <span className="text-[10px] font-medium text-slate-400 block truncate">
+                {admin?.email || "Partner Admin"}
+              </span>
+            </div>
+          </div>
 
-        <div className="shrink-0 p-4">
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-red-50 hover:text-red-500"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 hover:border-rose-200 active:scale-95 shadow-2xs"
           >
-            <LogOut size={20} />
-            <span>Logout</span>
+            <LogOut size={15} />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>

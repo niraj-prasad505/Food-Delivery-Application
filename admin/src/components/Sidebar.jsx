@@ -69,7 +69,7 @@ export default function Sidebar() {
     if (logout) {
       await logout();
     }
-    navigate("/admin/login");
+    navigate("/login");
   };
 
   const adminName = admin?.name || admin?.username || "Admin";

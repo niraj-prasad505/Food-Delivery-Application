@@ -305,7 +305,7 @@ export default function Reviews() {
                 </div>
 
                 {/* Comment Text */}
-                <p className="text-xs text-slate-600 leading-relaxed min-h-[3rem] italic">
+                <p className="text-xs text-slate-600 leading-relaxed min-h-12 italic">
                   "{rev.comment || "Customer did not leave written comments."}"
                 </p>
 

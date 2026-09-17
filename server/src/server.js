@@ -10,12 +10,13 @@ const connectDB = require("./config/db");
 const userRouter = require("./routes/userRouter");
 const ownerRouter = require("./routes/ownerRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
-const ownershopRoutes = require("./routes/ownerShopRoutes");
 const cartRoutes = require("./routes/userCartRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 
 // Admin Routes
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
+const AdminShopRoutes = require("./routes/adminShopRoutes");
+
 
 // New Public Customer Routes
 const shopRoutes = require("./routes/shopRoutes");
@@ -25,9 +26,7 @@ const app = express();
 
 connectDB();
 
-// --------------------
 // Middleware
-// --------------------
 
 app.use(
     cors({
@@ -44,9 +43,7 @@ app.use(cookieParser());
 
 const PORT = process.env.PORT || 5000;
 
-// --------------------
 // Basic Routes
-// --------------------
 
 app.get("/", (req, res) => {
     res.send("Food Delivery API is running!");
@@ -59,55 +56,39 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-// --------------------
 // User Routes
-// --------------------
 
 app.use("/api/users", userRouter);
 
-// --------------------
 // Owner Routes
-// --------------------
 
 app.use("/api/owner-auth", ownerRouter);
 
-// --------------------
 // Review Routes
-// --------------------
 
 app.use("/api/reviews", reviewRoutes);
 
-// --------------------
 // Owner Shop Management
-// --------------------
 
-app.use("/api/owner/shops", ownershopRoutes);
+app.use("/api/owner/shops", AdminShopRoutes);
 
-// --------------------
 // Cart & Wishlist
-// --------------------
 
 app.use("/api/cart", cartRoutes);
 
 app.use("/api/wishlist", wishlistRoutes);
 
-// --------------------
 // Admin Routes
-// --------------------
 
 app.use("/api/admin", adminDashboardRoutes);
 
-// --------------------
 // Public Customer Routes
-// --------------------
 
 app.use("/api/shops", shopRoutes);
 
 app.use("/api/foods", productRoutes);
 
-// --------------------
 // Start Server
-// --------------------
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

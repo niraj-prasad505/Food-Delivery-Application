@@ -1,14 +1,25 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import Navbar from "./Navbar";
 
 export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-100">
+
+      {/* Sidebar */}
       <Sidebar />
 
-      <main className="ml-64 min-h-screen">
+      {/* Main Area */}
+      <main className="ml-64">
+
+        {/* Navbar */}
+        <Navbar />
+
+        {/* Page Content */}
         <Outlet />
+
       </main>
+
     </div>
   );
 }

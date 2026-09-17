@@ -10,7 +10,7 @@ export default function AdminLayout() {
       <Sidebar />
 
       {/* Main Area */}
-      <main className="ml-64">
+      <main className="ml-69">
 
         {/* Navbar */}
         <Navbar />

@@ -17,6 +17,7 @@ const wishlistRoutes = require("./routes/wishlistRoutes");
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const AdminShopRoutes = require("./routes/adminShopRoutes");
 const adminProductRoutes = require("./routes/adminProductRoutes");
+const adminOrderRoutes = require("./routes/adminOrderRoutes");
 
 
 
@@ -75,6 +76,7 @@ app.use("/api/reviews", reviewRoutes);
 
 app.use("/api/owner/shops", AdminShopRoutes);
 app.use("/api/owner/products", adminProductRoutes);
+app.use("/api/owner/orders", adminOrderRoutes);
 
 // Cart & Wishlist
 

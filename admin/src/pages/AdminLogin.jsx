@@ -341,7 +341,7 @@ export default function AdminLogin() {
             <p className="text-xs text-slate-500">
               Need to register a new restaurant branch?{" "}
               <Link
-                to="/admin/register"
+                to="/register"
                 className="font-semibold text-orange-600 hover:text-orange-700 hover:underline"
               >
                 Sign up

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, CreditCard, CheckCircle2, ShieldCheck, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { createOrder } from "../services/orderService";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -14,13 +15,14 @@ export default function Checkout() {
   // Address State
   const [selectedAddress, setSelectedAddress] = useState("home");
 
-  // Payment State (All pre-filled values removed to start blank)
+  // Payment State
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [cardDetails, setCardDetails] = useState({ number: "", expiry: "", cvv: "", name: "" });
   const [upiId, setUpiId] = useState("");
   const [paymentError, setPaymentError] = useState("");
 
-  // Order Success Modal State
+  // Submitting & Modal State
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
 
   const addresses = [
@@ -57,11 +59,10 @@ export default function Checkout() {
     setPaymentError("");
 
     if (paymentMethod === "cod") {
-      return true; // COD requires no extra input validation
+      return true;
     }
 
     if (paymentMethod === "upi") {
-      // Basic UPI pattern validation (e.g. name@upi, user@okaxis)
       const upiRegex = /^[\w.-]+@[\w.-]+$/;
       if (!upiId.trim() || !upiRegex.test(upiId.trim())) {
         setPaymentError("Please enter a valid UPI ID (e.g. username@upi or number@paytm)");
@@ -96,7 +97,7 @@ export default function Checkout() {
     return false;
   };
 
-  // Step advancement handler with payment check
+  // Step advancement handler
   const handleProceedToNextStep = () => {
     if (currentStep === 1) {
       setCurrentStep(2);
@@ -107,15 +108,49 @@ export default function Checkout() {
     }
   };
 
-  const handlePlaceOrder = () => {
-    if (cartItems.length === 0) return;
-    setOrderPlaced(true);
-    setTimeout(() => {
-      clearCart();
-    }, 1500);
-  };
-
   const selectedAddrObj = addresses.find((a) => a.id === selectedAddress);
+
+  // PLACE ORDER HANDLER
+  const handlePlaceOrder = async () => {
+    if (cartItems.length === 0 || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const formattedItems = cartItems.map((item) => {
+        const product = item.product || item;
+        const price = Number(product.price) || 0;
+        const discount = Number(product.discount) || 0;
+        const finalPrice = discount > 0 ? price - (price * discount) / 100 : price;
+
+        return {
+          product: product._id || product.id,
+          name: product.name,
+          image: product.image || product.images?.[0] || "https://via.placeholder.com/100",
+          price: finalPrice,
+          quantity: item.quantity || 1,
+        };
+      });
+
+      const payload = {
+        items: formattedItems,
+        deliveryAddress: selectedAddrObj,
+        paymentMethod,
+        subtotal,
+        deliveryFee,
+        totalAmount: total,
+      };
+
+      const res = await createOrder(payload);
+      if (res.success) {
+        await clearCart();
+        setOrderPlaced(true);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-12 py-8 font-sans">
@@ -153,7 +188,7 @@ export default function Checkout() {
             </span>
           </div>
 
-          <div className={`h-1 w-10 sm:w-16 rounded-full transition-all ${currentStep >= 3 ? "bg-[#ff6840]" : "bg-gray-200"}`} />
+          <div className={`h-1 w-10 sm:w-16 rounded-full transition-all ${currentStep === 3 ? "bg-[#ff6840]" : "bg-gray-200"}`} />
 
           {/* Step 3: Review */}
           <div className="flex items-center gap-2">
@@ -502,7 +537,7 @@ export default function Checkout() {
                 </span>
               </div>
 
-              {/* ACTION BUTTON CHECKS CURRENT STEP & VALIDATION */}
+              {/* ACTION BUTTON */}
               {currentStep < 3 ? (
                 <button
                   onClick={handleProceedToNextStep}
@@ -514,10 +549,10 @@ export default function Checkout() {
               ) : (
                 <button
                   onClick={handlePlaceOrder}
-                  disabled={cartItems.length === 0}
+                  disabled={cartItems.length === 0 || isSubmitting}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  Place Order
+                  {isSubmitting ? "Placing Order..." : "Place Order"}
                 </button>
               )}
             </div>
@@ -535,10 +570,10 @@ export default function Checkout() {
               Thank you for ordering with SnackDrop. Your food will be delivered shortly!
             </p>
             <button
-              onClick={() => navigate("/")}
-              className="mt-6 w-full py-3 bg-[#ff6840] text-white font-bold rounded-2xl text-xs hover:bg-[#e05530] transition"
+              onClick={() => navigate("/orders")}
+              className="mt-6 w-full py-3 bg-[#ff6840] text-white font-bold rounded-2xl text-xs hover:bg-[#e05530] transition cursor-pointer"
             >
-              Back to Home
+              View My Orders →
             </button>
           </div>
         </div>

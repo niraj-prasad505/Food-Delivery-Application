@@ -1,5 +1,6 @@
+// src/pages/Login.jsx
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 
 import {
   loginUser,
@@ -11,7 +12,11 @@ import { useUser } from "../context/UserContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation(); // Hook to check where user came from
   const { login } = useUser();
+
+  // Determine return target: /checkout if coming from checkout guard, otherwise /
+  const redirectPath = location.state?.from || "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,8 +41,8 @@ export default function Login() {
         password,
       });
 
-      login(response.data.user);
-      navigate("/");
+      await login(response.data.user); // Syncs guest cart/wishlist to DB
+      navigate(redirectPath, { replace: true }); // Navigates seamlessly back to Checkout
     } catch (error) {
       setError(
         error.response?.data?.message || "Login failed"
@@ -84,8 +89,8 @@ export default function Login() {
 
       const response = await loginWithOtp(email, otp);
 
-      login(response.data.user);
-      navigate("/");
+      await login(response.data.user); // Syncs guest cart/wishlist to DB
+      navigate(redirectPath, { replace: true }); // Navigates seamlessly back to Checkout
     } catch (error) {
       setError(
         error.response?.data?.message || "Invalid OTP"
@@ -105,23 +110,19 @@ export default function Login() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-
       <div className="w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-sm p-8">
-
         {/* Heading */}
         <div className="text-center mb-7">
           <h1 className="text-2xl font-bold text-gray-800">
             Welcome Back!
           </h1>
-
           <p className="text-sm text-gray-500 mt-2">
-            Log in to your account
+            Log in to your account to complete your order
           </p>
         </div>
 
         {/* Login Type */}
         <div className="flex border-b border-gray-200 mb-6">
-
           <button
             type="button"
             onClick={() => changeLoginType("password")}
@@ -145,25 +146,21 @@ export default function Login() {
           >
             Login with OTP
           </button>
-
         </div>
 
         {/* Password Login */}
         {loginType === "password" && (
           <form onSubmit={handleLogin} className="space-y-5">
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email
               </label>
-
               <input
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-md
-                           outline-none focus:border-orange-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-md outline-none focus:border-orange-500"
                 required
               />
             </div>
@@ -173,7 +170,6 @@ export default function Login() {
                 <label className="text-sm font-medium text-gray-700">
                   Password
                 </label>
-
                 <Link
                   to="/forgot-password"
                   className="text-xs text-orange-500 hover:underline"
@@ -181,14 +177,12 @@ export default function Login() {
                   Forgot Password?
                 </Link>
               </div>
-
               <input
                 type="password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-md
-                           outline-none focus:border-orange-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-md outline-none focus:border-orange-500"
                 required
               />
             </div>
@@ -196,31 +190,26 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-orange-500 text-white rounded-md
-                         font-medium hover:bg-orange-600 disabled:opacity-50"
+              className="w-full py-3 bg-orange-500 text-white rounded-md font-medium hover:bg-orange-600 disabled:opacity-50"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
-
           </form>
         )}
 
         {/* OTP Login */}
         {loginType === "otp" && (
           <form onSubmit={handleOtpLogin} className="space-y-5">
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email
               </label>
-
               <input
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-md
-                           outline-none focus:border-orange-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-md outline-none focus:border-orange-500"
                 required
               />
             </div>
@@ -230,8 +219,7 @@ export default function Login() {
                 type="button"
                 onClick={handleSendOtp}
                 disabled={loading}
-                className="w-full py-3 bg-orange-500 text-white rounded-md
-                           font-medium hover:bg-orange-600 disabled:opacity-50"
+                className="w-full py-3 bg-orange-500 text-white rounded-md font-medium hover:bg-orange-600 disabled:opacity-50"
               >
                 {loading ? "Sending OTP..." : "Send OTP"}
               </button>
@@ -241,15 +229,13 @@ export default function Login() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     OTP
                   </label>
-
                   <input
                     type="text"
                     placeholder="Enter 6-digit OTP"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     maxLength={6}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-md
-                               outline-none focus:border-orange-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-md outline-none focus:border-orange-500"
                     required
                   />
                 </div>
@@ -257,8 +243,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-orange-500 text-white rounded-md
-                             font-medium hover:bg-orange-600 disabled:opacity-50"
+                  className="w-full py-3 bg-orange-500 text-white rounded-md font-medium hover:bg-orange-600 disabled:opacity-50"
                 >
                   {loading ? "Verifying..." : "Login"}
                 </button>
@@ -273,7 +258,6 @@ export default function Login() {
                 </button>
               </>
             )}
-
           </form>
         )}
 
@@ -284,19 +268,18 @@ export default function Login() {
           </p>
         )}
 
-        {/* Register */}
+        {/* Register link preserving state */}
         <p className="text-center text-sm text-gray-500 mt-7">
           Don't have an account?{" "}
           <Link
             to="/register"
+            state={{ from: redirectPath }}
             className="font-medium text-orange-500 hover:underline"
           >
             Sign Up
           </Link>
         </p>
-
       </div>
-
     </main>
   );
 }

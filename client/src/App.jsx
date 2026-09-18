@@ -1,6 +1,6 @@
 // client/src/App.jsx
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -12,13 +12,33 @@ import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
 import Wishlist from "./pages/Wishlist";
 import Checkout from "./pages/Checkout";
+import Orders from "./pages/Orders"; // <--- ADD THIS IMPORT
 import Footer from "./components/footer";
-
-
 import Profile from "./pages/Profile";
-
 import Navbar from "./components/navbar";
 
+import { useUser } from "./context/UserContext";
+
+// Protected Route Guard Component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useUser();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500 text-sm font-medium">Checking authentication...</p>
+      </div>
+    );
+  }
+
+  // If not logged in, redirect to login page and remember where they wanted to go
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
@@ -28,25 +48,41 @@ function App() {
       <Routes>
         {/* Customer Pages */}
         <Route path="/" element={<Home />} />
-
         <Route path="/restaurants" element={<ShopListing />} />
-
         <Route path="/restaurant/:id" element={<ShopDetails />} />
-
         <Route path="/restaurant/:id/menu" element={<ShopDetails />} />
-
         <Route path="/food/:id" element={<ProductDetails />} />
-
         <Route path="/login" element={<Login />} />
-
         <Route path="/register" element={<Register />} />
-
         <Route path="/cart" element={<Cart />} />
-
         <Route path="/explore" element={<ExploreFoods />} />
-
         <Route path="/wishlist" element={<Wishlist />} />
-        <Route path="/profile" element={<Profile />} />
+
+        {/* PROTECTED ROUTES */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <Checkout />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <Orders />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
 
       <Footer />

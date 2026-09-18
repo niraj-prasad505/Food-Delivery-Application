@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Order = require("../models/Order-model");
+const Order = require("../models/Order.model");
 const Shop = require("../models/Shop-model");
 
 const getOwnerId = (req) =>

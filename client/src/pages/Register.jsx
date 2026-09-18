@@ -1,13 +1,16 @@
 // src/pages/Register.jsx
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 
 import { createOtp, registerUser } from "../services/authService";
-import { useUser } from "../context/UserContext"; // Import useUser context hook
+import { useUser } from "../context/UserContext";
 
 export default function Register() {
   const navigate = useNavigate();
-  const { login } = useUser(); // Access login function to auto-login & sync guest items
+  const location = useLocation(); // Hook to check where user came from
+  const { login } = useUser();
+
+  const redirectPath = location.state?.from || "/";
 
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
@@ -34,7 +37,7 @@ export default function Register() {
       setOtpSent(true);
     } catch (error) {
       setError(error.response?.data?.message || "Unable to send OTP");
-    }  finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -60,12 +63,11 @@ export default function Register() {
         confirmPassword,
       });
 
-      // Auto-logs the user in and syncs localStorage items directly into MongoDB!
       if (response.data?.user) {
-        await login(response.data.user);
-        navigate("/");
+        await login(response.data.user); // Syncs guest cart/wishlist to DB
+        navigate(redirectPath, { replace: true }); // Navigates seamlessly back to Checkout
       } else {
-        navigate("/login");
+        navigate("/login", { state: { from: redirectPath } });
       }
     } catch (error) {
       setError(error.response?.data?.message || "Registration failed");
@@ -184,7 +186,11 @@ export default function Register() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-orange-500 hover:underline">
+            <Link 
+              to="/login" 
+              state={{ from: redirectPath }}
+              className="font-medium text-orange-500 hover:underline"
+            >
               Login
             </Link>
           </p>

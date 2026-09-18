@@ -440,7 +440,7 @@ A product is either in the wishlist or it is not.
 ============================================================
 
 FILE:
-    Order-model.js
+    Order.model.js
 
 PURPOSE:
     Represents a placed order.

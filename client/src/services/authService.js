@@ -48,12 +48,8 @@ export const requestPasswordReset = (email) => {
 };
 
 // Reset password
-export const resetUserPassword = (
-  token,
-  password,
-  confirmPassword
-) => {
-  return API.post(`/user/reset-password/${token}`, {
+export const resetUserPassword = (token, password, confirmPassword) => {
+  return API.post(`/users/reset-password/${token}`, {
     password,
     confirmPassword,
   });

@@ -5,6 +5,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ShopListing from "./pages/ShopListing";
 import ShopDetails from "./pages/ShopDetails";
 import ProductDetails from "./pages/ProductDetails";
@@ -16,6 +18,7 @@ import Orders from "./pages/Orders"; // <--- ADD THIS IMPORT
 import Footer from "./components/footer";
 import Profile from "./pages/Profile";
 import Navbar from "./components/navbar";
+
 
 import { useUser } from "./context/UserContext";
 
@@ -54,6 +57,8 @@ function App() {
         <Route path="/food/:id" element={<ProductDetails />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/explore" element={<ExploreFoods />} />
         <Route path="/wishlist" element={<Wishlist />} />

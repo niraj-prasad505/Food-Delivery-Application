@@ -99,8 +99,40 @@ const updateProfile = async (req, res) => {
         });
     }
 };
+const deleteUserProfile = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Delete user document from database
+    await User.findByIdAndDelete(userId);
+
+    // Optionally delete user locations or associated records
+    try {
+      const UserLocation = require("../models/UserLocation-model");
+      await UserLocation.deleteMany({ userId });
+    } catch (locErr) {
+      console.warn("Could not delete associated user locations:", locErr);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User account deleted successfully",
+    });
+  } catch (error) {
+    console.error("DELETE ACCOUNT ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete account",
+    });
+  }
+};
 
 module.exports = {
     getProfile,
     updateProfile,
+    deleteUserProfile,
 };

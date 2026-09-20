@@ -26,6 +26,7 @@ const adminProfileRoutes = require("./routes/adminProfileRoutes");
 // New Public Customer Routes
 const shopRoutes = require("./routes/shopRoutes");
 const productRoutes = require("./routes/productRoutes");
+const locationRoutes = require("./routes/locationRoutes");
 
 // Initialize Express App BEFORE using app.use()
 const app = express();
@@ -88,6 +89,8 @@ app.use("/api/admin", adminDashboardRoutes);
 // Public Customer Routes
 app.use("/api/shops", shopRoutes);
 app.use("/api/foods", productRoutes);
+app.use("/api", locationRoutes);
+
 
 // Start Server
 app.listen(PORT, () => {

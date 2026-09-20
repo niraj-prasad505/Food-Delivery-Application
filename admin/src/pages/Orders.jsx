@@ -99,7 +99,7 @@ export default function Orders() {
   };
 
   const handlePaymentToggle = async (orderId, currentPayment) => {
-    const nextStatus = currentPayment === "paid" ? "pending" : "paid";
+    const nextStatus = currentPayment?.toLowerCase() === "paid" ? "pending" : "paid";
     try {
       setUpdatingId(orderId);
       const res = await updatePaymentStatus(orderId, nextStatus);
@@ -120,14 +120,19 @@ export default function Orders() {
   };
 
   const getBadgeStyle = (status) => {
-    const found = STATUS_OPTIONS.find((s) => s.value === status?.toLowerCase());
+    const norm = status?.toLowerCase().replace(/\s+/g, "_");
+    const found = STATUS_OPTIONS.find((s) => s.value === norm || s.value === status?.toLowerCase());
     return found ? found.badge : "bg-slate-100 text-slate-700 border-slate-200";
   };
 
   const filteredOrders = orders.filter((o) => {
     const q = searchQuery.toLowerCase();
-    const matchesId = o._id.toLowerCase().includes(q);
-    const matchesUser = o.user?.name?.toLowerCase().includes(q) || o.user?.phone?.includes(q);
+    const matchesId = o._id?.toString().toLowerCase().includes(q);
+    const matchesUser =
+      o.user?.name?.toLowerCase().includes(q) ||
+      o.user?.phone?.includes(q) ||
+      o.deliveryAddress?.name?.toLowerCase().includes(q) ||
+      o.deliveryAddress?.phone?.includes(q);
     const matchesShop = o.shop?.name?.toLowerCase().includes(q);
     return matchesId || matchesUser || matchesShop;
   });
@@ -252,28 +257,30 @@ export default function Orders() {
                 {filteredOrders.map((ord) => (
                   <tr key={ord._id} className="hover:bg-slate-50/70 transition">
                     <td className="py-4 px-4 font-mono font-bold text-slate-800">
-                      #{ord._id.slice(-6).toUpperCase()}
+                      #{ord._id.toString().slice(-6).toUpperCase()}
                       <div className="text-[10px] font-normal text-slate-400 font-sans">
                         {new Date(ord.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </div>
                     </td>
 
                     <td className="py-4 px-4">
-                      <div className="font-semibold text-slate-900">{ord.user?.name || "Customer"}</div>
+                      <div className="font-semibold text-slate-900">
+                        {ord.user?.name || ord.deliveryAddress?.name || "Customer"}
+                      </div>
                       <div className="text-slate-400 text-[11px] flex items-center gap-1 mt-0.5">
-                        <Phone size={11} /> {ord.user?.phone || "No phone"}
+                        <Phone size={11} /> {ord.user?.phone || ord.deliveryAddress?.phone || "No phone"}
                       </div>
                     </td>
 
                     <td className="py-4 px-4 text-slate-600">
-                      <span className="font-medium text-slate-800">{ord.shop?.name}</span>
-                      <div className="text-[11px] text-slate-400">{ord.shop?.city}</div>
+                      <span className="font-medium text-slate-800">{ord.shop?.name || "Independent"}</span>
+                      <div className="text-[11px] text-slate-400">{ord.shop?.city || "Direct"}</div>
                     </td>
 
                     <td className="py-4 px-4">
                       <div className="font-bold text-slate-900 text-sm">₹{ord.totalAmount}</div>
                       <div className="text-[11px] text-slate-500">
-                        {ord.items.reduce((acc, item) => acc + item.quantity, 0)} item(s)
+                        {ord.items?.reduce((acc, item) => acc + (item.quantity || 1), 0) || 0} item(s)
                       </div>
                     </td>
 
@@ -283,12 +290,12 @@ export default function Orders() {
                           onClick={() => handlePaymentToggle(ord._id, ord.paymentStatus)}
                           disabled={updatingId === ord._id}
                           className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition ${
-                            ord.paymentStatus === "paid"
+                            ord.paymentStatus?.toLowerCase() === "paid"
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
                           }`}
                         >
-                          {ord.paymentStatus}
+                          {ord.paymentStatus || "Pending"}
                         </button>
                         <span className="text-[10px] font-semibold text-slate-400 uppercase">
                           {ord.paymentMethod}
@@ -298,7 +305,7 @@ export default function Orders() {
 
                     <td className="py-4 px-4">
                       <select
-                        value={ord.status}
+                        value={ord.status?.toLowerCase().replace(/\s+/g, "_")}
                         disabled={updatingId === ord._id}
                         onChange={(e) => handleStatusChange(ord._id, e.target.value)}
                         className={`text-xs font-semibold py-1 px-2.5 rounded-xl border outline-none cursor-pointer ${getBadgeStyle(
@@ -315,8 +322,12 @@ export default function Orders() {
 
                     <td className="py-4 px-4 text-right">
                       <button
-                        onClick={() => setSelectedOrder(ord)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOrder(ord);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition cursor-pointer"
                       >
                         <Eye size={15} />
                       </button>
@@ -339,26 +350,51 @@ export default function Orders() {
                   ORDER DETAILS
                 </span>
                 <h2 className="text-xl font-extrabold text-slate-900">
-                  #{selectedOrder._id.toUpperCase()}
+                  #{selectedOrder._id?.toString().slice(-6).toUpperCase()}
                 </h2>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Customer & Location */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2 text-xs">
+            {/* Customer & Location Details */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2.5 text-xs">
               <div className="flex justify-between items-center text-slate-700">
-                <span className="font-semibold text-slate-900">{selectedOrder.user?.name}</span>
-                <span className="text-slate-500">{selectedOrder.user?.phone}</span>
+                <span className="font-semibold text-slate-900">
+                  {selectedOrder.user?.name || selectedOrder.deliveryAddress?.name || "Customer"}
+                </span>
+                <span className="text-slate-500">
+                  {selectedOrder.user?.phone || selectedOrder.deliveryAddress?.phone || "No phone"}
+                </span>
               </div>
-              <div className="flex items-start gap-1.5 text-slate-500 pt-1">
-                <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
-                <span>{selectedOrder.deliveryAddress}</span>
+
+              {/* Individual Address Fields */}
+              <div className="flex items-start gap-2 text-slate-600 pt-1 border-t border-slate-200/50">
+                <MapPin size={15} className="text-[#ff6840] shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-slate-900">
+                    {selectedOrder.deliveryAddress?.name}{" "}
+                    {selectedOrder.deliveryAddress?.label && (
+                      <span className="text-slate-400 font-normal">
+                        ({selectedOrder.deliveryAddress.label})
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-slate-600">
+                    {typeof selectedOrder.deliveryAddress === "object"
+                      ? selectedOrder.deliveryAddress?.details || "No street address provided"
+                      : String(selectedOrder.deliveryAddress)}
+                  </p>
+                  {selectedOrder.deliveryAddress?.phone && (
+                    <p className="text-slate-400 text-[11px]">
+                      Contact: {selectedOrder.deliveryAddress.phone}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -368,7 +404,7 @@ export default function Orders() {
                 Ordered Meals
               </h4>
               <div className="divide-y divide-slate-100 border-y border-slate-100">
-                {selectedOrder.items.map((item, idx) => (
+                {selectedOrder.items?.map((item, idx) => (
                   <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2.5">
                       <div className="w-5 h-5 rounded-md bg-orange-100 text-orange-700 font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -376,7 +412,9 @@ export default function Orders() {
                       </div>
                       <span className="font-semibold text-slate-800">{item.name}</span>
                     </div>
-                    <span className="font-bold text-slate-900">₹{item.price * item.quantity}</span>
+                    <span className="font-bold text-slate-900">
+                      ₹{Number(item.price) * Number(item.quantity)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -390,34 +428,34 @@ export default function Orders() {
 
             {/* Quick Transition Buttons */}
             <div className="pt-4 border-t border-slate-100 flex gap-2">
-              {selectedOrder.status === "pending" && (
+              {["pending", "order placed"].includes(selectedOrder.status?.toLowerCase()) && (
                 <button
                   onClick={() => handleStatusChange(selectedOrder._id, "confirmed")}
-                  className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white font-semibold text-xs hover:bg-sky-500"
+                  className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white font-semibold text-xs hover:bg-sky-500 cursor-pointer"
                 >
                   Accept & Confirm
                 </button>
               )}
-              {selectedOrder.status === "confirmed" && (
+              {selectedOrder.status?.toLowerCase() === "confirmed" && (
                 <button
                   onClick={() => handleStatusChange(selectedOrder._id, "preparing")}
-                  className="flex-1 py-2.5 rounded-xl bg-orange-600 text-white font-semibold text-xs hover:bg-orange-500"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-600 text-white font-semibold text-xs hover:bg-orange-500 cursor-pointer"
                 >
                   Start Preparing
                 </button>
               )}
-              {selectedOrder.status === "preparing" && (
+              {selectedOrder.status?.toLowerCase() === "preparing" && (
                 <button
                   onClick={() => handleStatusChange(selectedOrder._id, "out_for_delivery")}
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-500"
+                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-500 cursor-pointer"
                 >
                   Hand Over to Driver
                 </button>
               )}
-              {selectedOrder.status === "out_for_delivery" && (
+              {selectedOrder.status?.toLowerCase() === "out_for_delivery" && (
                 <button
                   onClick={() => handleStatusChange(selectedOrder._id, "delivered")}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-500"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-500 cursor-pointer"
                 >
                   Mark Delivered
                 </button>

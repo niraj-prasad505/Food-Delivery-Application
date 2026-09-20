@@ -7,10 +7,16 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    // REQUIRED: Links the order to the restaurant/owner
+    shop: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Shop",
+      required: false, // set to false for now so mock/legacy orders without a shop don't crash
+    },
     items: [
       {
         product: {
-          type: mongoose.Schema.Types.ObjectId,
+          type: mongoose.Schema.Types.Mixed,
           ref: "Product",
         },
         name: { type: String, required: true },
@@ -32,7 +38,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Paid", "Failed"],
+      enum: ["Pending", "Paid", "Failed", "Refunded", "pending", "paid", "failed", "refunded"],
       default: "Pending",
     },
     razorpayOrderId: { type: String },
@@ -42,7 +48,19 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["Order Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"],
+      enum: [
+        "Order Placed",
+        "Preparing",
+        "Out for Delivery",
+        "Delivered",
+        "Cancelled",
+        "pending",
+        "confirmed",
+        "preparing",
+        "out_for_delivery",
+        "delivered",
+        "cancelled",
+      ],
       default: "Order Placed",
     },
   },

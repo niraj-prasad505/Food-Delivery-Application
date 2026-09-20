@@ -63,7 +63,7 @@ const FoodCard = ({ food, isFavorite: propIsFav, onFavorite, onAddToCart }) => {
         />
         {food.discount && (
           <span className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
-            {food.discount}
+            {food.discount} % off
           </span>
         )}
 

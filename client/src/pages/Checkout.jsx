@@ -43,12 +43,16 @@ export default function Checkout() {
   const total = subtotal + deliveryFee;
   const selectedAddrObj = addresses.find((a) => a.id === selectedAddress);
 
+  // 1. Preserve shop ID in each formatted item
   const formatCartItems = () =>
     cartItems.map((item) => {
       const product = item.product || item;
       const price = Number(product.price) || 0;
       const discount = Number(product.discount) || 0;
       const finalPrice = discount > 0 ? price - (price * discount) / 100 : price;
+      
+      // Handles both populated shop object ({ _id: "..." }) or plain string ID
+      const itemShopId = product.shop?._id || product.shop || item.shop?._id || item.shop || null;
 
       return {
         product: product._id || product.id,
@@ -56,6 +60,7 @@ export default function Checkout() {
         image: product.image || product.images?.[0] || "https://via.placeholder.com/100",
         price: finalPrice,
         quantity: item.quantity || 1,
+        shop: itemShopId,
       };
     });
 
@@ -65,10 +70,20 @@ export default function Checkout() {
 
     const formattedItems = formatCartItems();
 
+    // 2. Extract shop ID for the overall order from the first product
+    const firstProduct = cartItems[0]?.product || cartItems[0];
+    const orderShopId =
+      firstProduct?.shop?._id ||
+      firstProduct?.shop ||
+      cartItems[0]?.shop?._id ||
+      cartItems[0]?.shop ||
+      null;
+
     try {
       // 1. CASH ON DELIVERY FLOW
       if (paymentMethod === "cod") {
         const payload = {
+          shop: orderShopId, // <--- Added shop ID
           items: formattedItems,
           deliveryAddress: selectedAddrObj,
           paymentMethod: "cod",
@@ -105,6 +120,7 @@ export default function Checkout() {
         handler: async function (response) {
           try {
             const verificationPayload = {
+              shop: orderShopId, // <--- Added shop ID
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
@@ -157,28 +173,66 @@ export default function Checkout() {
         {/* Progress Bar */}
         <div className="flex items-center justify-center gap-2 sm:gap-6 mb-10 max-w-xl mx-auto">
           <div className="flex items-center gap-2">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${currentStep >= 1 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"}`}>
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
+                currentStep >= 1 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
+              }`}
+            >
               {currentStep > 1 ? <Check size={16} /> : <MapPin size={16} />}
             </div>
-            <span className={`text-xs sm:text-sm font-bold ${currentStep >= 1 ? "text-[#ff6840]" : "text-gray-400"}`}>Address</span>
+            <span
+              className={`text-xs sm:text-sm font-bold ${
+                currentStep >= 1 ? "text-[#ff6840]" : "text-gray-400"
+              }`}
+            >
+              Address
+            </span>
           </div>
 
-          <div className={`h-1 w-10 sm:w-16 rounded-full transition-all ${currentStep >= 2 ? "bg-[#ff6840]" : "bg-gray-200"}`} />
+          <div
+            className={`h-1 w-10 sm:w-16 rounded-full transition-all ${
+              currentStep >= 2 ? "bg-[#ff6840]" : "bg-gray-200"
+            }`}
+          />
 
           <div className="flex items-center gap-2">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${currentStep >= 2 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"}`}>
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
+                currentStep >= 2 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
+              }`}
+            >
               {currentStep > 2 ? <Check size={16} /> : <CreditCard size={16} />}
             </div>
-            <span className={`text-xs sm:text-sm font-bold ${currentStep >= 2 ? "text-[#ff6840]" : "text-gray-400"}`}>Payment</span>
+            <span
+              className={`text-xs sm:text-sm font-bold ${
+                currentStep >= 2 ? "text-[#ff6840]" : "text-gray-400"
+              }`}
+            >
+              Payment
+            </span>
           </div>
 
-          <div className={`h-1 w-10 sm:w-16 rounded-full transition-all ${currentStep === 3 ? "bg-[#ff6840]" : "bg-gray-200"}`} />
+          <div
+            className={`h-1 w-10 sm:w-16 rounded-full transition-all ${
+              currentStep === 3 ? "bg-[#ff6840]" : "bg-gray-200"
+            }`}
+          />
 
           <div className="flex items-center gap-2">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${currentStep === 3 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"}`}>
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
+                currentStep === 3 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
+              }`}
+            >
               3
             </div>
-            <span className={`text-xs sm:text-sm font-bold ${currentStep === 3 ? "text-[#ff6840]" : "text-gray-400"}`}>Review</span>
+            <span
+              className={`text-xs sm:text-sm font-bold ${
+                currentStep === 3 ? "text-[#ff6840]" : "text-gray-400"
+              }`}
+            >
+              Review
+            </span>
           </div>
         </div>
 
@@ -189,7 +243,10 @@ export default function Checkout() {
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-5">
                   <h2 className="text-lg font-bold text-gray-900">Select Delivery Address</h2>
-                  <button onClick={() => navigate("/address")} className="text-xs font-bold text-[#ff6840] hover:underline">
+                  <button
+                    onClick={() => navigate("/address")}
+                    className="text-xs font-bold text-[#ff6840] hover:underline"
+                  >
                     + Add New Address
                   </button>
                 </div>
@@ -202,7 +259,9 @@ export default function Checkout() {
                         key={addr.id}
                         onClick={() => setSelectedAddress(addr.id)}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
-                          isSelected ? "border-[#ff6840] bg-orange-50/40 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"
+                          isSelected
+                            ? "border-[#ff6840] bg-orange-50/40 shadow-sm"
+                            : "border-gray-200 bg-white hover:border-gray-300"
                         }`}
                       >
                         <input

@@ -37,7 +37,7 @@ const getMyOrders = async (req, res) => {
     const filter = { shop: { $in: shopIds } };
 
     if (status && status !== "all") {
-      filter.status = status.toLowerCase();
+      filter.status = new RegExp(`^${status}$`, "i"); // Case-insensitive status filter
     }
 
     if (shopId && mongoose.Types.ObjectId.isValid(shopId)) {
@@ -50,7 +50,7 @@ const getMyOrders = async (req, res) => {
       .populate("items.product", "name images price category")
       .sort({ createdAt: -1 });
 
-    // Client-side search fallback across populated fields
+    // Search filter
     let result = orders;
     if (search) {
       const q = search.trim().toLowerCase();
@@ -137,6 +137,11 @@ const updateOrderStatus = async (req, res) => {
     const ownerId = getOwnerId(req);
 
     const validStatuses = [
+      "Order Placed",
+      "Preparing",
+      "Out for Delivery",
+      "Delivered",
+      "Cancelled",
       "pending",
       "confirmed",
       "preparing",
@@ -145,10 +150,10 @@ const updateOrderStatus = async (req, res) => {
       "cancelled",
     ];
 
-    if (!status || !validStatuses.includes(status.toLowerCase())) {
+    if (!status || !validStatuses.map((s) => s.toLowerCase()).includes(status.toLowerCase())) {
       return res.status(400).json({
         success: false,
-        message: `Invalid status. Choose from: ${validStatuses.join(", ")}`,
+        message: `Invalid status. Choose from: Order Placed, Preparing, Out for Delivery, Delivered, Cancelled`,
       });
     }
 
@@ -175,11 +180,14 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
-    existingOrder.status = status.toLowerCase();
+    existingOrder.status = status;
 
-    // Auto-mark payment as paid if delivered and payment method was COD
-    if (existingOrder.status === "delivered" && existingOrder.paymentMethod === "cod") {
-      existingOrder.paymentStatus = "paid";
+    // Auto-mark payment as Paid if delivered via COD
+    if (
+      (status.toLowerCase() === "delivered" || status === "Delivered") &&
+      existingOrder.paymentMethod === "cod"
+    ) {
+      existingOrder.paymentStatus = "Paid";
     }
 
     await existingOrder.save();
@@ -213,9 +221,13 @@ const updatePaymentStatus = async (req, res) => {
     const { paymentStatus } = req.body;
     const ownerId = getOwnerId(req);
 
-    const validPaymentStatuses = ["pending", "paid", "failed", "refunded"];
+    const validPaymentStatuses = ["Pending", "Paid", "Failed", "Refunded"];
 
-    if (!paymentStatus || !validPaymentStatuses.includes(paymentStatus.toLowerCase())) {
+    const normalizedStatus = validPaymentStatuses.find(
+      (s) => s.toLowerCase() === paymentStatus?.toLowerCase()
+    );
+
+    if (!normalizedStatus) {
       return res.status(400).json({
         success: false,
         message: `Invalid payment status. Choose from: ${validPaymentStatuses.join(", ")}`,
@@ -238,12 +250,12 @@ const updatePaymentStatus = async (req, res) => {
       });
     }
 
-    order.paymentStatus = paymentStatus.toLowerCase();
+    order.paymentStatus = normalizedStatus;
     await order.save();
 
     return res.status(200).json({
       success: true,
-      message: `Payment status updated to ${paymentStatus}`,
+      message: `Payment status updated to ${normalizedStatus}`,
       order,
     });
   } catch (error) {

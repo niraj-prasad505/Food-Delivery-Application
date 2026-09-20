@@ -127,9 +127,17 @@ const FoodCategories = () => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation(); // Prevents navigating to product details page
-                        addToCart(food, 1);
+                        
+                        // Normalize product payload so both MongoDB and LocalStorage accept it
+                        const formattedProduct = {
+                          ...food,
+                          _id: food._id || food.id,
+                          id: food.id || food._id,
+                        };
+
+                        addToCart(formattedProduct, 1);
                       }}
-                      className="flex items-center gap-1 px-3.5 py-1.5 bg-[#FF6840] hover:bg-[#e05530] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
+                      className="flex items-center gap-1 px-3.5 py-1.5 bg-[#FF6840] hover:bg-[#e05530] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>

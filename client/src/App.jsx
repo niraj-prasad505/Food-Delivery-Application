@@ -1,6 +1,7 @@
 // client/src/App.jsx
 
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import ScrollToTop from "../src/components/Helper/ScrollToTop";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -14,11 +15,10 @@ import Cart from "./pages/Cart";
 import ExploreFoods from "./pages/ExploreFoods";
 import Wishlist from "./pages/Wishlist";
 import Checkout from "./pages/Checkout";
-import Orders from "./pages/Orders"; // <--- ADD THIS IMPORT
+import Orders from "./pages/Orders";
 import Footer from "./components/footer";
 import Profile from "./pages/Profile";
 import Navbar from "./components/navbar";
-
 
 import { useUser } from "./context/UserContext";
 
@@ -46,6 +46,9 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
+      {/* 🚀 SCROLL TO TOP PLACED OUTSIDE <Routes> */}
+      <ScrollToTop />
+
       <Navbar />
 
       <Routes>

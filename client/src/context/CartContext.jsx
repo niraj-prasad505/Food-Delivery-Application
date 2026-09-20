@@ -19,7 +19,7 @@ export const CartProvider = ({ children }) => {
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
-    }, 3000); // Disappears automatically after 3 seconds
+    }, 3000);
   };
 
   // Load Cart
@@ -52,50 +52,75 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem("snackdrop_cart", JSON.stringify(items));
   };
 
-  // Add Item
+  // Add or Update Quantity
   const addToCart = async (product, quantity = 1) => {
-    const productId = product._id || product.id;
-    let newCount = cartCount + quantity;
+    const productId = String(
+      product._id || product.id || product.product?._id || product.product?.id || product || ""
+    );
 
-    if (isAuthenticated) {
+    const isRealMongoId = /^[0-9a-fA-F]{24}$/.test(productId);
+
+    const normalizedProduct = {
+      _id: productId,
+      id: productId,
+      name: product.name || product.product?.name || "Food Item",
+      price: Number(product.price || product.product?.price || 0),
+      discount: Number(product.discount || product.product?.discount || 0),
+      image: product.image || product.product?.image || product.images?.[0] || "https://via.placeholder.com/150",
+      category: product.category || product.product?.category || "General",
+    };
+
+    if (isAuthenticated && isRealMongoId) {
       try {
         await cartService.addToCart(productId, quantity);
         await fetchCart();
+        triggerToast(`🛒 "${normalizedProduct.name}" added!`);
+        return;
       } catch (err) {
-        console.error("API Add to Cart error:", err);
+        console.warn("API Add to Cart error, falling back to local storage:", err);
       }
-    } else {
-      const existingIndex = cartItems.findIndex(
-        (item) => (item.product?._id || item.product?.id || item.product) === productId
-      );
-
-      let updated = [...cartItems];
-      if (existingIndex > -1) {
-        updated[existingIndex].quantity += quantity;
-      } else {
-        updated.push({ product, quantity });
-      }
-      saveLocalCart(updated);
     }
 
-    // Trigger Floating Pop-up Notification
-    const itemName = product.name ? `"${product.name}"` : "Item";
-    triggerToast(`🛒 ${itemName} added! (${newCount} in Cart)`);
+    // Guest mode / Mock items fallback
+    const existingIndex = cartItems.findIndex((item) => {
+      const itemProdId = String(item.product?._id || item.product?.id || item._id || item.id);
+      return itemProdId === productId;
+    });
+
+    let updated = [...cartItems];
+    if (existingIndex > -1) {
+      const newQty = updated[existingIndex].quantity + quantity;
+      if (newQty <= 0) {
+        updated = updated.filter((_, idx) => idx !== existingIndex);
+      } else {
+        updated[existingIndex].quantity = newQty;
+      }
+    } else if (quantity > 0) {
+      updated.push({ product: normalizedProduct, quantity });
+    }
+
+    saveLocalCart(updated);
+
+    if (quantity > 0) {
+      triggerToast(`🛒 "${normalizedProduct.name}" added!`);
+    }
   };
 
   // Remove Item
   const removeFromCart = async (productId) => {
+    const targetId = String(productId);
     if (isAuthenticated) {
       try {
-        await cartService.removeFromCart(productId);
+        await cartService.removeFromCart(targetId);
         await fetchCart();
       } catch (err) {
         console.error("API Remove Cart error:", err);
       }
     } else {
-      const updated = cartItems.filter(
-        (item) => (item.product?._id || item.product?.id || item.product) !== productId
-      );
+      const updated = cartItems.filter((item) => {
+        const itemProdId = String(item.product?._id || item.product?.id || item._id || item.id);
+        return itemProdId !== targetId;
+      });
       saveLocalCart(updated);
     }
   };
@@ -130,7 +155,7 @@ export const CartProvider = ({ children }) => {
     >
       {children}
 
-      {/* GLOBAL FLOATING CART TOAST (Appears on every page when adding to cart) */}
+      {/* GLOBAL FLOATING CART TOAST */}
       {showToast && (
         <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-[#17191c] px-5 py-3 text-sm font-semibold text-white shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-300">
           {toastMessage}

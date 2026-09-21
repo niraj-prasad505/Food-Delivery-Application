@@ -1,17 +1,17 @@
+// client/src/services/userService.js
 import API from "./api";
 
-// Get logged-in user's profile
 export const getProfile = async () => {
-    const response = await API.get("/users/profile");
-    return response.data;
+  const response = await API.get("/users/profile");
+  return response.data;
 };
 
-// Update logged-in user's profile
 export const updateProfile = async (userData) => {
-    const response = await API.patch(
-        "/users/profile",
-        userData
-    );
+  const response = await API.put("/users/profile", userData);
+  return response.data;
+};
 
-    return response.data;
+export const deleteProfile = async () => {
+  const response = await API.delete("/users/profile");
+  return response.data;
 };

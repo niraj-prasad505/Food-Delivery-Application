@@ -388,6 +388,50 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Switch user role to owner / merchant
+const switchToMerchant = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated. Please log in again." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User account not found." });
+    }
+
+    // Update user role to owner
+    user.role = "owner";
+    await user.save();
+
+    // Re-issue JWT token with owner role
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.cookie("token", token, cookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully switched to Merchant Partner!",
+      user: {
+        _id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role,
+        picture: user.picture,
+      },
+    });
+  } catch (error) {
+    console.error("SWITCH TO MERCHANT ERROR:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -398,4 +442,5 @@ module.exports = {
   createOtp,
   createLoginOtp,
   loginOtp,
+  switchToMerchant,
 };

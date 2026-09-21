@@ -19,38 +19,26 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync Guest localStorage items directly to MongoDB
   const syncGuestDataToAccount = async () => {
-    try {
-      // 1. Sync Guest Cart
-      const localCart = JSON.parse(localStorage.getItem("snackdrop_cart") || "[]");
-      if (localCart.length > 0) {
-        for (const item of localCart) {
-          const productId = item.product?._id || item.product?.id || item.product;
-          const quantity = item.quantity || 1;
-          if (productId) {
-            await cartService.addToCart(productId, quantity);
-          }
-        }
-        localStorage.removeItem("snackdrop_cart");
-      }
+  try {
+    const guestCart = JSON.parse(localStorage.getItem("guestCart") || "[]");
 
-      // 2. Sync Guest Wishlist
-      const localWishlist = JSON.parse(localStorage.getItem("snackdrop_wishlist") || "[]");
-      if (localWishlist.length > 0) {
-        for (const item of localWishlist) {
-          const productId = item._id || item.id || item;
-          if (productId) {
-            await wishlistService.addToWishlist(productId);
-          }
+    if (guestCart.length > 0) {
+      for (const item of guestCart) {
+        // Handle nested product objects or direct item IDs safely
+        const productId = item.productId || item.product?._id || item._id || item.id;
+        const quantity = item.quantity || 1;
+
+        if (productId) {
+          await addToCart({ productId, quantity });
         }
-        localStorage.removeItem("snackdrop_wishlist");
       }
-    } catch (error) {
-      console.warn("Error syncing guest data to account:", error);
+      localStorage.removeItem("guestCart");
     }
-  };
-
+  } catch (err) {
+    console.error("Error syncing guest data to account:", err);
+  }
+};
   // Check logged-in user on mount
   useEffect(() => {
     const loadCurrentUser = async () => {

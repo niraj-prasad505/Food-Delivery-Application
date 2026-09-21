@@ -1,24 +1,47 @@
-// src/pages/Checkout.jsx
-import React, { useState } from "react";
+// client/src/pages/Checkout.jsx
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, CreditCard, CheckCircle2, ShieldCheck, ArrowLeft, Check, AlertCircle } from "lucide-react";
+import {
+  MapPin,
+  CreditCard,
+  CheckCircle2,
+  ShieldCheck,
+  ArrowLeft,
+  Check,
+  AlertCircle,
+  Plus,
+} from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { createOrder } from "../services/orderService";
+import { LocationContext } from "../context/LocationContext";
+import { useUser } from "../context/UserContext";
+import API from "../services/api";
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { cartItems, clearCart } = useCart();
   const { user } = useUser();
-  const { location: navbarLocation } = useContext(LocationContext);
+  
+  // Safely consume LocationContext with a fallback
+  const locationCtx = useContext(LocationContext);
+  const navbarLocation = locationCtx?.location || "";
 
+  // Multi-step state: 1 = Address, 2 = Payment, 3 = Review
   const [currentStep, setCurrentStep] = useState(1);
 
   // Address State
-  const [selectedAddress, setSelectedAddress] = useState("home");
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [loadingAddress, setLoadingAddress] = useState(true);
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState("cod");
-  const [cardDetails, setCardDetails] = useState({ number: "", expiry: "", cvv: "", name: "" });
+  const [cardDetails, setCardDetails] = useState({
+    number: "",
+    expiry: "",
+    cvv: "",
+    name: "",
+  });
   const [upiId, setUpiId] = useState("");
   const [paymentError, setPaymentError] = useState("");
 
@@ -56,6 +79,20 @@ export default function Checkout() {
       })
       .catch((err) => {
         console.warn("Could not load addresses, using fallback context.");
+        if (navbarLocation) {
+          const fallbackObj = {
+            _id: "navbar-fallback",
+            label: "Selected Location",
+            formattedAddress: navbarLocation,
+            street: navbarLocation,
+            city: "Current Locality",
+            name: user?.fullname || "Customer",
+            details: navbarLocation,
+            phone: user?.contact ? String(user.contact) : "9876543210",
+          };
+          setAddresses([fallbackObj]);
+          setSelectedAddressId("navbar-fallback");
+        }
       })
       .finally(() => {
         if (isMounted) setLoadingAddress(false);
@@ -66,6 +103,7 @@ export default function Checkout() {
     };
   }, [navbarLocation, user]);
 
+  // Subtotal and Total calculations
   const subtotal = cartItems.reduce((total, item) => {
     const product = item.product || item;
     const price = Number(product.price) || 0;
@@ -88,7 +126,9 @@ export default function Checkout() {
     if (paymentMethod === "upi") {
       const upiRegex = /^[\w.-]+@[\w.-]+$/;
       if (!upiId.trim() || !upiRegex.test(upiId.trim())) {
-        setPaymentError("Please enter a valid UPI ID (e.g. username@upi or number@paytm)");
+        setPaymentError(
+          "Please enter a valid UPI ID (e.g. username@upi or number@paytm)"
+        );
         return false;
       }
       return true;
@@ -110,7 +150,10 @@ export default function Checkout() {
         setPaymentError("Please enter a valid expiry date in MM/YY format.");
         return false;
       }
-      if (cardDetails.cvv.trim().length !== 3 || !/^\d+$/.test(cardDetails.cvv.trim())) {
+      if (
+        cardDetails.cvv.trim().length !== 3 ||
+        !/^\d+$/.test(cardDetails.cvv.trim())
+      ) {
         setPaymentError("Please enter a valid 3-digit CVV.");
         return false;
       }
@@ -120,9 +163,12 @@ export default function Checkout() {
     return false;
   };
 
-  // Step advancement handler
   const handleProceedToNextStep = () => {
     if (currentStep === 1) {
+      if (!selectedAddressId && addresses.length > 0) {
+        alert("Please select a delivery address to proceed.");
+        return;
+      }
       setCurrentStep(2);
     } else if (currentStep === 2) {
       if (validatePayment()) {
@@ -131,45 +177,69 @@ export default function Checkout() {
     }
   };
 
-  const selectedAddrObj = addresses.find((a) => a.id === selectedAddress);
+  const selectedAddrObj = addresses.find(
+    (a) => (a._id || a.id) === selectedAddressId
+  );
 
   // PLACE ORDER HANDLER
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
+    setErrorMessage("");
+
     try {
+      // 1. Format order items
       const formattedItems = cartItems.map((item) => {
-        const product = item.product || item;
-        const price = Number(product.price) || 0;
-        const discount = Number(product.discount) || 0;
+        const prod = item.product || item;
+        const rawId = prod._id || prod.id || item._id || item.id;
+        const price = Number(prod.price) || 0;
+        const discount = Number(prod.discount) || 0;
         const finalPrice = discount > 0 ? price - (price * discount) / 100 : price;
 
         return {
-          product: product._id || product.id,
-          name: product.name,
-          image: product.image || product.images?.[0] || "https://via.placeholder.com/100",
-          price: finalPrice,
-          quantity: item.quantity || 1,
+          product: String(rawId),
+          name: prod.name || "Food Item",
+          image: prod.image || prod.images?.[0] || "https://via.placeholder.com/100",
+          price: Number(finalPrice.toFixed(2)),
+          quantity: Number(item.quantity) || 1,
         };
       });
 
+      // 2. Format deliveryAddress object satisfying Mongoose requirements (name, details, phone)
+      const deliveryAddressObj = {
+        name: user?.fullname || selectedAddrObj?.name || "Customer",
+        details: selectedAddrObj?.formattedAddress || selectedAddrObj?.details || navbarLocation || "Delivery Address",
+        phone: user?.contact ? String(user.contact) : selectedAddrObj?.phone || "9876543210",
+        label: selectedAddrObj?.label || "Home",
+      };
+
+      // 3. Payload
       const payload = {
         items: formattedItems,
-        deliveryAddress: selectedAddrObj,
-        paymentMethod,
-        subtotal,
-        deliveryFee,
-        totalAmount: total,
+        deliveryAddress: deliveryAddressObj,
+        paymentMethod: paymentMethod.toLowerCase(),
+        subtotal: Number(subtotal.toFixed(2)),
+        deliveryFee: Number(deliveryFee.toFixed(2)),
+        totalAmount: Number(total.toFixed(2)),
       };
 
       const res = await createOrder(payload);
-      if (res.success) {
+
+      if (res.success || res.order || res.data || res.status === 200 || res.status === 201) {
         await clearCart();
         setOrderPlaced(true);
+      } else {
+        throw new Error(res.message || "Order rejected by server.");
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to place order. Please try again.");
+      console.error("ORDER CREATION FAILURE:", err);
+      const serverErr =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to place order. Please try again.";
+      setErrorMessage(serverErr);
     } finally {
       setIsSubmitting(false);
     }
@@ -256,58 +326,78 @@ export default function Checkout() {
           
           {/* LEFT COLUMN: DYNAMIC STEP VIEW */}
           <div className="lg:col-span-2 space-y-6">
+            
             {/* Step 1: Address */}
             {currentStep === 1 && (
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-5">
-                  <h2 className="text-lg font-bold text-gray-900">Select Delivery Address</h2>
-                  <button onClick={() => navigate("/address")} className="text-xs font-bold text-[#ff6840] hover:underline">
-                    + Add New Address
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Select Delivery Address
+                  </h2>
+                  <button
+                    onClick={() => navigate("/profile")}
+                    className="flex items-center gap-1 text-xs font-bold text-[#ff6840] hover:underline cursor-pointer"
+                  >
+                    <Plus size={14} /> Add New Address
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  {addresses.map((addr) => {
-                    const isSelected = selectedAddress === addr.id;
-                    return (
-                      <div
-                        key={addr.id}
-                        onClick={() => setSelectedAddress(addr.id)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
-                          isSelected ? "border-[#ff6840] bg-orange-50/40 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="address"
-                          checked={isSelected}
-                          onChange={() => setSelectedAddress(addr.id)}
-                          className="mt-1 accent-[#ff6840] w-4 h-4 cursor-pointer"
-                        />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center">
-                            <h3 className="font-bold text-gray-900 text-sm">{addr.label}</h3>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate("/address");
-                              }}
-                              className="text-xs font-semibold text-[#ff6840] hover:underline"
-                            >
-                              Edit
-                            </button>
+                {loadingAddress ? (
+                  <p className="text-xs text-gray-400 py-4 text-center">
+                    Loading addresses...
+                  </p>
+                ) : addresses.length > 0 ? (
+                  <div className="space-y-4">
+                    {addresses.map((addr) => {
+                      const addrId = addr._id || addr.id;
+                      const isSelected = selectedAddressId === addrId;
+                      return (
+                        <div
+                          key={addrId}
+                          onClick={() => setSelectedAddressId(addrId)}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                            isSelected
+                              ? "border-[#ff6840] bg-orange-50/40 shadow-sm"
+                              : "border-gray-200 bg-white hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="address"
+                            checked={isSelected}
+                            onChange={() => setSelectedAddressId(addrId)}
+                            className="mt-1 accent-[#ff6840] w-4 h-4 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                              <h3 className="font-bold text-gray-900 text-sm">
+                                {addr.label || "Home"}
+                              </h3>
+                            </div>
+                            <p className="text-xs font-medium text-gray-700 mt-1">
+                              {addr.name || user?.fullname}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {addr.formattedAddress || addr.details}
+                            </p>
+                            {addr.phone && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {addr.phone}
+                              </p>
+                            )}
                           </div>
-                          <p className="text-xs font-medium text-gray-700 mt-1">{addr.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{addr.details}</p>
-                          <p className="text-xs text-gray-500 mt-1">{addr.phone}</p>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 text-xs font-medium text-gray-700">
+                    Delivering to: <span className="font-bold">{navbarLocation || "Selected Location"}</span>
+                  </div>
+                )}
 
                 <button
-                  onClick={() => setCurrentStep(2)}
+                  onClick={handleProceedToNextStep}
                   className="w-full mt-6 bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
                 >
                   Proceed to Payment →
@@ -319,8 +409,11 @@ export default function Checkout() {
             {currentStep === 2 && (
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <button
-                  onClick={() => setCurrentStep(1)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] mb-4"
+                  onClick={() => {
+                    setPaymentError("");
+                    setCurrentStep(1);
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] mb-4 cursor-pointer"
                 >
                   <ArrowLeft size={14} /> Back to Address
                 </button>
@@ -343,19 +436,28 @@ export default function Checkout() {
                       name="payment"
                       value="cod"
                       checked={paymentMethod === "cod"}
-                      onChange={() => setPaymentMethod("cod")}
-                      className="accent-[#ff6840] w-4 h-4"
+                      onChange={() => {
+                        setPaymentMethod("cod");
+                        setPaymentError("");
+                      }}
+                      className="accent-[#ff6840] w-4 h-4 cursor-pointer"
                     />
                     <div>
-                      <span className="text-sm font-bold text-gray-800 block">Cash on Delivery</span>
-                      <span className="text-xs text-gray-500">Pay cash or UPI upon food arrival</span>
+                      <span className="text-sm font-bold text-gray-800 block">
+                        Cash on Delivery
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Pay cash or UPI upon food arrival
+                      </span>
                     </div>
                   </label>
 
                   {/* UPI */}
                   <div
                     className={`p-4 rounded-2xl border transition-all ${
-                      paymentMethod === "upi" ? "border-[#ff6840] bg-orange-50/40" : "border-gray-200"
+                      paymentMethod === "upi"
+                        ? "border-[#ff6840] bg-orange-50/40"
+                        : "border-gray-200"
                     }`}
                   >
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -368,9 +470,11 @@ export default function Checkout() {
                           setPaymentMethod("upi");
                           setPaymentError("");
                         }}
-                        className="accent-[#ff6840] w-4 h-4"
+                        className="accent-[#ff6840] w-4 h-4 cursor-pointer"
                       />
-                      <span className="text-sm font-bold text-gray-800">UPI / Google Pay / PhonePe / Paytm</span>
+                      <span className="text-sm font-bold text-gray-800">
+                        UPI / Google Pay / PhonePe / Paytm
+                      </span>
                     </label>
 
                     {paymentMethod === "upi" && (
@@ -392,7 +496,9 @@ export default function Checkout() {
                   {/* Card Module */}
                   <div
                     className={`p-4 rounded-2xl border transition-all ${
-                      paymentMethod === "card" ? "border-[#ff6840] bg-orange-50/40" : "border-gray-200"
+                      paymentMethod === "card"
+                        ? "border-[#ff6840] bg-orange-50/40"
+                        : "border-gray-200"
                     }`}
                   >
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -405,9 +511,11 @@ export default function Checkout() {
                           setPaymentMethod("card");
                           setPaymentError("");
                         }}
-                        className="accent-[#ff6840] w-4 h-4"
+                        className="accent-[#ff6840] w-4 h-4 cursor-pointer"
                       />
-                      <span className="text-sm font-bold text-gray-800">Credit / Debit Card</span>
+                      <span className="text-sm font-bold text-gray-800">
+                        Credit / Debit Card
+                      </span>
                     </label>
 
                     {paymentMethod === "card" && (
@@ -471,7 +579,7 @@ export default function Checkout() {
                 )}
 
                 <button
-                  onClick={() => setCurrentStep(3)}
+                  onClick={handleProceedToNextStep}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
                 >
                   Proceed to Review →
@@ -484,7 +592,7 @@ export default function Checkout() {
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-6">
                 <button
                   onClick={() => setCurrentStep(2)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840]"
+                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] cursor-pointer"
                 >
                   <ArrowLeft size={14} /> Back to Payment
                 </button>
@@ -500,13 +608,17 @@ export default function Checkout() {
                     </span>
                     <button
                       onClick={() => setCurrentStep(1)}
-                      className="text-xs font-bold text-[#ff6840]"
+                      className="text-xs font-bold text-[#ff6840] cursor-pointer"
                     >
                       Change
                     </button>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{selectedAddrObj?.name}</p>
-                  <p className="text-xs text-gray-600 mt-0.5">{selectedAddrObj?.details}</p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {user?.fullname || selectedAddrObj?.name || "Customer"}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    {selectedAddrObj?.formattedAddress || selectedAddrObj?.details || navbarLocation || "Delivery Address"}
+                  </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
@@ -516,7 +628,7 @@ export default function Checkout() {
                     </span>
                     <button
                       onClick={() => setCurrentStep(2)}
-                      className="text-xs font-bold text-[#ff6840]"
+                      className="text-xs font-bold text-[#ff6840] cursor-pointer"
                     >
                       Change
                     </button>
@@ -524,7 +636,8 @@ export default function Checkout() {
                   <p className="text-sm font-bold text-gray-900 capitalize">
                     {paymentMethod === "cod" && "Cash on Delivery"}
                     {paymentMethod === "upi" && `UPI (${upiId || "Standard"})`}
-                    {paymentMethod === "card" && `Card ending in ${cardDetails.number.slice(-4) || "****"}`}
+                    {paymentMethod === "card" &&
+                      `Card ending in ${cardDetails.number.slice(-4) || "****"}`}
                   </p>
                 </div>
 
@@ -551,20 +664,36 @@ export default function Checkout() {
 
               <div className="space-y-3 max-h-60 overflow-y-auto pr-1 scrollbar-thin mb-4">
                 {cartItems.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-4">No items in cart</p>
+                  <p className="text-xs text-gray-400 text-center py-4">
+                    No items in cart
+                  </p>
                 ) : (
                   cartItems.map((item, idx) => {
                     const product = item.product || item;
                     const price = Number(product.price) || 0;
-                    const image = product.image || product.images?.[0] || "https://via.placeholder.com/100";
+                    const image =
+                      product.image ||
+                      product.images?.[0] ||
+                      "https://via.placeholder.com/100";
 
                     return (
-                      <div key={idx} className="flex items-center justify-between gap-3 text-xs">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-3 text-xs"
+                      >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <img src={image} alt={product.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                          <img
+                            src={image}
+                            alt={product.name}
+                            className="w-10 h-10 rounded-lg object-cover shrink-0"
+                          />
                           <div className="truncate">
-                            <p className="font-bold text-gray-800 truncate">{product.name}</p>
-                            <p className="text-gray-400 text-[10px]">Qty: {item.quantity || 1}</p>
+                            <p className="font-bold text-gray-800 truncate">
+                              {product.name}
+                            </p>
+                            <p className="text-gray-400 text-[10px]">
+                              Qty: {item.quantity || 1}
+                            </p>
                           </div>
                         </div>
                         <span className="font-bold text-gray-900 shrink-0">
@@ -595,12 +724,14 @@ export default function Checkout() {
 
               <div className="flex justify-between items-center mb-6">
                 <span className="text-sm font-bold text-gray-900">Total</span>
-                <span className="text-xl font-extrabold text-[#ff6840]">₹{total.toFixed(0)}</span>
+                <span className="text-xl font-extrabold text-[#ff6840]">
+                  ₹{total.toFixed(0)}
+                </span>
               </div>
 
               {currentStep < 3 ? (
                 <button
-                  onClick={() => setCurrentStep((prev) => prev + 1)}
+                  onClick={handleProceedToNextStep}
                   disabled={cartItems.length === 0}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
@@ -612,7 +743,7 @@ export default function Checkout() {
                   disabled={cartItems.length === 0 || isSubmitting}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {isSubmitting ? "Processing..." : paymentMethod === "online" ? "Pay with Razorpay" : "Place COD Order"}
+                  {isSubmitting ? "Processing..." : "Place Order"}
                 </button>
               )}
             </div>
@@ -623,7 +754,7 @@ export default function Checkout() {
       {/* Success Modal */}
       {orderPlaced && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-gray-900">Order Placed!</h3>
             <p className="text-xs text-gray-500 mt-2 leading-relaxed">

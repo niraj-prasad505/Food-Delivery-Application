@@ -5,9 +5,15 @@ const Product = require("../models/Product-model");
 // ADD PRODUCT TO CART
 const addToCart = async (req, res) => {
     try {
-        const { productId, quantity = 1 } = req.body;
+        // 1. Extract productId from any payload key structure (productId, product._id, product)
+        let rawProductId = req.body.productId || req.body.product;
+        if (typeof rawProductId === "object" && rawProductId !== null) {
+            rawProductId = rawProductId._id || rawProductId.id;
+        }
 
-        if (!productId) {
+        const quantity = Number(req.body.quantity) || 1;
+
+        if (!rawProductId) {
             return res.status(400).json({ success: false, message: "Product ID is required" });
         }
 
@@ -16,6 +22,9 @@ const addToCart = async (req, res) => {
             return res.status(401).json({ success: false, message: "User authentication failed. Please re-login." });
         }
 
+        const productId = String(rawProductId);
+
+        // 2. Safely reject non-MongoDB ObjectId formats (e.g. mock items)
         if (!mongoose.Types.ObjectId.isValid(productId)) {
             return res.status(400).json({
                 success: false,
@@ -86,15 +95,22 @@ const getCart = async (req, res) => {
 // UPDATE PRODUCT QUANTITY
 const updateCartItem = async (req, res) => {
     try {
-        const { productId, quantity } = req.body;
+        let rawProductId = req.body.productId || req.body.product;
+        if (typeof rawProductId === "object" && rawProductId !== null) {
+            rawProductId = rawProductId._id || rawProductId.id;
+        }
+
+        const quantity = req.body.quantity;
         const userId = req.user?._id || req.user?.id;
 
-        if (!productId || quantity === undefined) {
+        if (!rawProductId || quantity === undefined) {
             return res.status(400).json({ success: false, message: "Product ID and quantity are required" });
         }
         if (quantity < 1) {
             return res.status(400).json({ success: false, message: "Quantity must be at least 1" });
         }
+
+        const productId = String(rawProductId);
 
         const product = await Product.findById(productId);
         if (!product) {

@@ -19,6 +19,7 @@ import Orders from "./pages/Orders";
 import Footer from "./components/footer";
 import Profile from "./pages/Profile";
 import Navbar from "./components/navbar";
+import Address from "./pages/Address";
 
 import { useUser } from "./context/UserContext";
 
@@ -65,6 +66,7 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/explore" element={<ExploreFoods />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/address" element={<Address />} />
 
         {/* PROTECTED ROUTES */}
         <Route

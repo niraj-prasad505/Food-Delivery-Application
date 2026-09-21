@@ -35,6 +35,7 @@ router.post("/reset-password/:token", resetPassword);
 
 // Profile Routes
 router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, updateProfile);
 router.patch("/profile", authMiddleware, updateProfile);
 
 // Switch Role Route

@@ -1,20 +1,41 @@
 // client/src/pages/Checkout.jsx
-import React, { useState, useEffect, useContext, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, CreditCard, CheckCircle2, ShieldCheck, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { createOrder } from "../services/orderService";
+import { useUser } from "../context/UserContext";
+import { LocationContext } from "../context/LocationContext";
+import API from "../services/api";
+
+// Dynamic script loader for Razorpay Checkout SDK
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { cartItems, clearCart } = useCart();
   const { user } = useUser();
-  const { location: navbarLocation } = useContext(LocationContext);
+  const locationCtx = useContext(LocationContext);
+  const navbarLocation = locationCtx?.location || "";
 
   const [currentStep, setCurrentStep] = useState(1);
 
   // Address State
-  const [selectedAddress, setSelectedAddress] = useState("home");
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [loadingAddress, setLoadingAddress] = useState(true);
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState("cod");
@@ -96,7 +117,7 @@ export default function Checkout() {
   const validatePayment = () => {
     setPaymentError("");
 
-    if (paymentMethod === "cod") {
+    if (paymentMethod === "cod" || paymentMethod === "online") {
       return true;
     }
 
@@ -139,17 +160,21 @@ export default function Checkout() {
     if (currentStep === 1) {
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      setCurrentStep(3);
+      if (validatePayment()) {
+        setCurrentStep(3);
+      }
     }
   };
 
-  const selectedAddrObj = addresses.find((a) => a.id === selectedAddress);
+  const selectedAddrObj = addresses.find((a) => (a._id || a.id) === selectedAddressId) || addresses[0];
 
-  // PLACE ORDER HANDLER
+  // PLACE ORDER & RAZORPAY HANDLER
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
+    setErrorMessage("");
+
     try {
       const formattedItems = cartItems.map((item) => {
         const product = item.product || item;
@@ -161,27 +186,83 @@ export default function Checkout() {
           product: product._id || product.id,
           name: product.name,
           image: product.image || product.images?.[0] || "https://via.placeholder.com/100",
-          price: finalPrice,
+          price: Number(finalPrice.toFixed(2)),
           quantity: item.quantity || 1,
         };
       });
 
-      const payload = {
-        items: formattedItems,
-        deliveryAddress: selectedAddrObj,
-        paymentMethod,
-        subtotal,
-        deliveryFee,
-        totalAmount: total,
+      // FIX: Explicitly format deliveryAddress to satisfy Mongoose requirements (name, details, phone)
+      const deliveryAddressObj = {
+        name: selectedAddrObj?.name || user?.fullname || "Customer",
+        details: selectedAddrObj?.details || selectedAddrObj?.formattedAddress || navbarLocation || "Delivery Address",
+        phone: selectedAddrObj?.phone ? String(selectedAddrObj.phone) : user?.contact ? String(user.contact) : "9876543210",
+        label: selectedAddrObj?.label || "Home",
       };
 
-      const res = await createOrder(payload);
-      if (res.success) {
-        await clearCart();
-        setOrderPlaced(true);
+      const payload = {
+        items: formattedItems,
+        deliveryAddress: deliveryAddressObj,
+        paymentMethod: paymentMethod.toLowerCase(),
+        subtotal: Number(subtotal.toFixed(2)),
+        deliveryFee: Number(deliveryFee.toFixed(2)),
+        totalAmount: Number(total.toFixed(2)),
+      };
+
+      // ONLINE / RAZORPAY PAYMENT
+      if (paymentMethod === "online" || paymentMethod === "card" || paymentMethod === "upi") {
+        const isLoaded = await loadRazorpayScript();
+        if (!isLoaded) {
+          setErrorMessage("Razorpay SDK failed to load. Please check your internet connection.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const res = await createOrder(payload);
+
+        if (res.razorpayOrderId || res.order?.razorpayOrderId) {
+          const options = {
+            key: import.meta.env?.VITE_RAZORPAY_KEY_ID || res.key || "rzp_test_dummyKey",
+            amount: Math.round(total * 100),
+            currency: "INR",
+            name: "SnackDrop",
+            description: "Food Delivery Payment",
+            order_id: res.razorpayOrderId || res.order.razorpayOrderId,
+            handler: async function (response) {
+              await clearCart();
+              setOrderPlaced(true);
+            },
+            prefill: {
+              name: user?.fullname || cardDetails.name || "",
+              email: user?.email || "",
+              contact: user?.contact || "",
+            },
+            theme: {
+              color: "#ff6840",
+            },
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        } else if (res.success || res.order) {
+          await clearCart();
+          setOrderPlaced(true);
+        } else {
+          throw new Error(res.message || "Failed to initialize payment gateway.");
+        }
+      } 
+      // CASH ON DELIVERY
+      else {
+        const res = await createOrder(payload);
+        if (res.success || res.order) {
+          await clearCart();
+          setOrderPlaced(true);
+        } else {
+          throw new Error(res.message || "Failed to place order.");
+        }
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to place order. Please try again.");
+      console.error("ORDER CREATION ERROR:", err);
+      setErrorMessage(err.response?.data?.message || err.message || "Failed to place order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -241,7 +322,7 @@ export default function Checkout() {
           <div className="flex items-center gap-2">
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
-                currentStep === 3 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
+                currentStep === 3 ? "bg-[#ff6840]" : "bg-gray-200"
               }`}
             >
               3
@@ -266,53 +347,53 @@ export default function Checkout() {
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-5">
                   <h2 className="text-lg font-bold text-gray-900">Select Delivery Address</h2>
-                  <button onClick={() => navigate("/address")} className="text-xs font-bold text-[#ff6840] hover:underline">
+                  <button onClick={() => navigate("/profile")} className="text-xs font-bold text-[#ff6840] hover:underline cursor-pointer">
                     + Add New Address
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  {addresses.map((addr) => {
-                    const isSelected = selectedAddress === addr.id;
-                    return (
-                      <div
-                        key={addr.id}
-                        onClick={() => setSelectedAddress(addr.id)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
-                          isSelected ? "border-[#ff6840] bg-orange-50/40 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="address"
-                          checked={isSelected}
-                          onChange={() => setSelectedAddress(addr.id)}
-                          className="mt-1 accent-[#ff6840] w-4 h-4 cursor-pointer"
-                        />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center">
-                            <h3 className="font-bold text-gray-900 text-sm">{addr.label}</h3>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate("/address");
-                              }}
-                              className="text-xs font-semibold text-[#ff6840] hover:underline"
-                            >
-                              Edit
-                            </button>
+                {loadingAddress ? (
+                  <p className="text-xs text-gray-400 py-4 text-center">Loading addresses...</p>
+                ) : addresses.length > 0 ? (
+                  <div className="space-y-4">
+                    {addresses.map((addr) => {
+                      const addrId = addr._id || addr.id;
+                      const isSelected = selectedAddressId === addrId;
+                      return (
+                        <div
+                          key={addrId}
+                          onClick={() => setSelectedAddressId(addrId)}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                            isSelected ? "border-[#ff6840] bg-orange-50/40 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="address"
+                            checked={isSelected}
+                            onChange={() => setSelectedAddressId(addrId)}
+                            className="mt-1 accent-[#ff6840] w-4 h-4 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                              <h3 className="font-bold text-gray-900 text-sm">{addr.label || "Home"}</h3>
+                            </div>
+                            <p className="text-xs font-medium text-gray-700 mt-1">{addr.name || user?.fullname}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{addr.formattedAddress || addr.details}</p>
+                            {addr.phone && <p className="text-xs text-gray-500 mt-1">{addr.phone}</p>}
                           </div>
-                          <p className="text-xs font-medium text-gray-700 mt-1">{addr.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{addr.details}</p>
-                          <p className="text-xs text-gray-500 mt-1">{addr.phone}</p>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 text-xs font-medium text-gray-700">
+                    Delivering to: <span className="font-bold">{navbarLocation || "Selected Location"}</span>
+                  </div>
+                )}
 
                 <button
-                  onClick={() => setCurrentStep(2)}
+                  onClick={handleProceedToNextStep}
                   className="w-full mt-6 bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
                 >
                   Proceed to Payment →
@@ -325,7 +406,7 @@ export default function Checkout() {
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <button
                   onClick={() => setCurrentStep(1)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] mb-4"
+                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] mb-4 cursor-pointer"
                 >
                   <ArrowLeft size={14} /> Back to Address
                 </button>
@@ -337,7 +418,7 @@ export default function Checkout() {
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
                       paymentMethod === "online"
-                        ? "border-[#ff6840] bg-orange-50/40 shadow-xs"
+                        ? "border-[#ff6840] bg-orange-50/40"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -363,7 +444,7 @@ export default function Checkout() {
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
                       paymentMethod === "cod"
-                        ? "border-[#ff6840] bg-orange-50/40 shadow-xs"
+                        ? "border-[#ff6840] bg-orange-50/40"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -373,7 +454,7 @@ export default function Checkout() {
                       value="cod"
                       checked={paymentMethod === "cod"}
                       onChange={() => setPaymentMethod("cod")}
-                      className="accent-[#ff6840] w-4 h-4"
+                      className="accent-[#ff6840] w-4 h-4 cursor-pointer"
                     />
                     <div>
                       <span className="text-sm font-bold text-gray-800 block">Cash on Delivery</span>
@@ -397,7 +478,7 @@ export default function Checkout() {
                           setPaymentMethod("upi");
                           setPaymentError("");
                         }}
-                        className="accent-[#ff6840] w-4 h-4"
+                        className="accent-[#ff6840] w-4 h-4 cursor-pointer"
                       />
                       <span className="text-sm font-bold text-gray-800">UPI / Google Pay / PhonePe / Paytm</span>
                     </label>
@@ -434,7 +515,7 @@ export default function Checkout() {
                           setPaymentMethod("card");
                           setPaymentError("");
                         }}
-                        className="accent-[#ff6840] w-4 h-4"
+                        className="accent-[#ff6840] w-4 h-4 cursor-pointer"
                       />
                       <span className="text-sm font-bold text-gray-800">Credit / Debit Card</span>
                     </label>
@@ -491,6 +572,13 @@ export default function Checkout() {
                   </div>
                 </div>
 
+                {paymentError && (
+                  <div className="flex items-center gap-2 p-3.5 mb-4 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-100">
+                    <AlertCircle size={16} className="shrink-0" />
+                    <span>{paymentError}</span>
+                  </div>
+                )}
+
                 <button
                   onClick={handleProceedToNextStep}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
@@ -524,8 +612,8 @@ export default function Checkout() {
                       Change
                     </button>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{selectedAddrObj?.name}</p>
-                  <p className="text-xs text-gray-600 mt-0.5">{selectedAddrObj?.details}</p>
+                  <p className="text-sm font-bold text-gray-900">{selectedAddrObj?.name || user?.fullname || "Customer"}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">{selectedAddrObj?.details || selectedAddrObj?.formattedAddress || navbarLocation}</p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
@@ -542,6 +630,7 @@ export default function Checkout() {
                   </div>
                   <p className="text-sm font-bold text-gray-900 capitalize">
                     {paymentMethod === "cod" && "Cash on Delivery"}
+                    {paymentMethod === "online" && "Pay Online (Razorpay)"}
                     {paymentMethod === "upi" && `UPI (${upiId || "Standard"})`}
                     {paymentMethod === "card" && `Card ending in ${cardDetails.number.slice(-4) || "****"}`}
                   </p>
@@ -642,7 +731,7 @@ export default function Checkout() {
                   disabled={cartItems.length === 0 || isSubmitting}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {isSubmitting ? "Processing..." : paymentMethod === "online" ? "Pay with Razorpay" : "Place COD Order"}
+                  {isSubmitting ? "Processing..." : paymentMethod === "cod" ? "Place COD Order" : "Pay with Razorpay"}
                 </button>
               )}
             </div>

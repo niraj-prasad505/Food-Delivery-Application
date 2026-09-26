@@ -1,47 +1,24 @@
 // client/src/pages/Checkout.jsx
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  MapPin,
-  CreditCard,
-  CheckCircle2,
-  ShieldCheck,
-  ArrowLeft,
-  Check,
-  AlertCircle,
-  Plus,
-} from "lucide-react";
+import { MapPin, CreditCard, CheckCircle2, ShieldCheck, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { createOrder } from "../services/orderService";
-import { LocationContext } from "../context/LocationContext";
-import { useUser } from "../context/UserContext";
-import API from "../services/api";
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { cartItems, clearCart } = useCart();
   const { user } = useUser();
-  
-  // Safely consume LocationContext with a fallback
-  const locationCtx = useContext(LocationContext);
-  const navbarLocation = locationCtx?.location || "";
+  const { location: navbarLocation } = useContext(LocationContext);
 
-  // Multi-step state: 1 = Address, 2 = Payment, 3 = Review
   const [currentStep, setCurrentStep] = useState(1);
 
   // Address State
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddressId, setSelectedAddressId] = useState("");
-  const [loadingAddress, setLoadingAddress] = useState(true);
+  const [selectedAddress, setSelectedAddress] = useState("home");
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState("cod");
-  const [cardDetails, setCardDetails] = useState({
-    number: "",
-    expiry: "",
-    cvv: "",
-    name: "",
-  });
+  const [cardDetails, setCardDetails] = useState({ number: "", expiry: "", cvv: "", name: "" });
   const [upiId, setUpiId] = useState("");
   const [paymentError, setPaymentError] = useState("");
 
@@ -77,7 +54,7 @@ export default function Checkout() {
           setSelectedAddressId("navbar-fallback");
         }
       })
-      .catch((err) => {
+      .catch(() => {
         console.warn("Could not load addresses, using fallback context.");
         if (navbarLocation) {
           const fallbackObj = {
@@ -126,9 +103,7 @@ export default function Checkout() {
     if (paymentMethod === "upi") {
       const upiRegex = /^[\w.-]+@[\w.-]+$/;
       if (!upiId.trim() || !upiRegex.test(upiId.trim())) {
-        setPaymentError(
-          "Please enter a valid UPI ID (e.g. username@upi or number@paytm)"
-        );
+        setPaymentError("Please enter a valid UPI ID (e.g. username@upi or number@paytm)");
         return false;
       }
       return true;
@@ -150,10 +125,7 @@ export default function Checkout() {
         setPaymentError("Please enter a valid expiry date in MM/YY format.");
         return false;
       }
-      if (
-        cardDetails.cvv.trim().length !== 3 ||
-        !/^\d+$/.test(cardDetails.cvv.trim())
-      ) {
+      if (cardDetails.cvv.trim().length !== 3 || !/^\d+$/.test(cardDetails.cvv.trim())) {
         setPaymentError("Please enter a valid 3-digit CVV.");
         return false;
       }
@@ -165,81 +137,51 @@ export default function Checkout() {
 
   const handleProceedToNextStep = () => {
     if (currentStep === 1) {
-      if (!selectedAddressId && addresses.length > 0) {
-        alert("Please select a delivery address to proceed.");
-        return;
-      }
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (validatePayment()) {
-        setCurrentStep(3);
-      }
+      setCurrentStep(3);
     }
   };
 
-  const selectedAddrObj = addresses.find(
-    (a) => (a._id || a.id) === selectedAddressId
-  );
+  const selectedAddrObj = addresses.find((a) => a.id === selectedAddress);
 
   // PLACE ORDER HANDLER
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
-    setErrorMessage("");
-
     try {
-      // 1. Format order items
       const formattedItems = cartItems.map((item) => {
-        const prod = item.product || item;
-        const rawId = prod._id || prod.id || item._id || item.id;
-        const price = Number(prod.price) || 0;
-        const discount = Number(prod.discount) || 0;
+        const product = item.product || item;
+        const price = Number(product.price) || 0;
+        const discount = Number(product.discount) || 0;
         const finalPrice = discount > 0 ? price - (price * discount) / 100 : price;
 
         return {
-          product: String(rawId),
-          name: prod.name || "Food Item",
-          image: prod.image || prod.images?.[0] || "https://via.placeholder.com/100",
-          price: Number(finalPrice.toFixed(2)),
-          quantity: Number(item.quantity) || 1,
+          product: product._id || product.id,
+          name: product.name,
+          image: product.image || product.images?.[0] || "https://via.placeholder.com/100",
+          price: finalPrice,
+          quantity: item.quantity || 1,
         };
       });
 
-      // 2. Format deliveryAddress object satisfying Mongoose requirements (name, details, phone)
-      const deliveryAddressObj = {
-        name: user?.fullname || selectedAddrObj?.name || "Customer",
-        details: selectedAddrObj?.formattedAddress || selectedAddrObj?.details || navbarLocation || "Delivery Address",
-        phone: user?.contact ? String(user.contact) : selectedAddrObj?.phone || "9876543210",
-        label: selectedAddrObj?.label || "Home",
-      };
-
-      // 3. Payload
       const payload = {
         items: formattedItems,
-        deliveryAddress: deliveryAddressObj,
-        paymentMethod: paymentMethod.toLowerCase(),
-        subtotal: Number(subtotal.toFixed(2)),
-        deliveryFee: Number(deliveryFee.toFixed(2)),
-        totalAmount: Number(total.toFixed(2)),
+        deliveryAddress: selectedAddrObj,
+        paymentMethod,
+        subtotal,
+        deliveryFee,
+        totalAmount: total,
       };
 
       const res = await createOrder(payload);
-
-      if (res.success || res.order || res.data || res.status === 200 || res.status === 201) {
+      if (res.success) {
         await clearCart();
         setOrderPlaced(true);
-      } else {
-        throw new Error(res.message || "Order rejected by server.");
       }
     } catch (err) {
-      console.error("ORDER CREATION FAILURE:", err);
-      const serverErr =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        "Failed to place order. Please try again.";
-      setErrorMessage(serverErr);
+      alert(err.response?.data?.message || "Failed to place order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -248,15 +190,12 @@ export default function Checkout() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-12 py-8 font-sans">
       <div className="max-w-6xl mx-auto">
-        
         {/* DYNAMIC PROGRESS BAR */}
         <div className="flex items-center justify-center gap-2 sm:gap-6 mb-10 max-w-xl mx-auto">
           <div className="flex items-center gap-2">
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
-                currentStep >= 1
-                  ? "bg-[#ff6840] text-white"
-                  : "bg-gray-200 text-gray-500"
+                currentStep >= 1 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
               }`}
             >
               {currentStep > 1 ? <Check size={16} /> : <MapPin size={16} />}
@@ -279,9 +218,7 @@ export default function Checkout() {
           <div className="flex items-center gap-2">
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
-                currentStep >= 2
-                  ? "bg-[#ff6840] text-white"
-                  : "bg-gray-200 text-gray-500"
+                currentStep >= 2 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
               }`}
             >
               {currentStep > 2 ? <Check size={16} /> : <CreditCard size={16} />}
@@ -304,9 +241,7 @@ export default function Checkout() {
           <div className="flex items-center gap-2">
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-sm transition-all ${
-                currentStep === 3
-                  ? "bg-[#ff6840] text-white"
-                  : "bg-gray-200 text-gray-500"
+                currentStep === 3 ? "bg-[#ff6840] text-white" : "bg-gray-200 text-gray-500"
               }`}
             >
               3
@@ -323,81 +258,61 @@ export default function Checkout() {
 
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          
-          {/* LEFT COLUMN: DYNAMIC STEP VIEW */}
+          {/* LEFT COLUMN: STEP VIEWS */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* Step 1: Address */}
             {currentStep === 1 && (
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-5">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Select Delivery Address
-                  </h2>
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="flex items-center gap-1 text-xs font-bold text-[#ff6840] hover:underline cursor-pointer"
-                  >
-                    <Plus size={14} /> Add New Address
+                  <h2 className="text-lg font-bold text-gray-900">Select Delivery Address</h2>
+                  <button onClick={() => navigate("/address")} className="text-xs font-bold text-[#ff6840] hover:underline">
+                    + Add New Address
                   </button>
                 </div>
 
-                {loadingAddress ? (
-                  <p className="text-xs text-gray-400 py-4 text-center">
-                    Loading addresses...
-                  </p>
-                ) : addresses.length > 0 ? (
-                  <div className="space-y-4">
-                    {addresses.map((addr) => {
-                      const addrId = addr._id || addr.id;
-                      const isSelected = selectedAddressId === addrId;
-                      return (
-                        <div
-                          key={addrId}
-                          onClick={() => setSelectedAddressId(addrId)}
-                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
-                            isSelected
-                              ? "border-[#ff6840] bg-orange-50/40 shadow-sm"
-                              : "border-gray-200 bg-white hover:border-gray-300"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="address"
-                            checked={isSelected}
-                            onChange={() => setSelectedAddressId(addrId)}
-                            className="mt-1 accent-[#ff6840] w-4 h-4 cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <div className="flex justify-between items-center">
-                              <h3 className="font-bold text-gray-900 text-sm">
-                                {addr.label || "Home"}
-                              </h3>
-                            </div>
-                            <p className="text-xs font-medium text-gray-700 mt-1">
-                              {addr.name || user?.fullname}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {addr.formattedAddress || addr.details}
-                            </p>
-                            {addr.phone && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {addr.phone}
-                              </p>
-                            )}
+                <div className="space-y-4">
+                  {addresses.map((addr) => {
+                    const isSelected = selectedAddress === addr.id;
+                    return (
+                      <div
+                        key={addr.id}
+                        onClick={() => setSelectedAddress(addr.id)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                          isSelected ? "border-[#ff6840] bg-orange-50/40 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="address"
+                          checked={isSelected}
+                          onChange={() => setSelectedAddress(addr.id)}
+                          className="mt-1 accent-[#ff6840] w-4 h-4 cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-gray-900 text-sm">{addr.label}</h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate("/address");
+                              }}
+                              className="text-xs font-semibold text-[#ff6840] hover:underline"
+                            >
+                              Edit
+                            </button>
                           </div>
+                          <p className="text-xs font-medium text-gray-700 mt-1">{addr.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{addr.details}</p>
+                          <p className="text-xs text-gray-500 mt-1">{addr.phone}</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 text-xs font-medium text-gray-700">
-                    Delivering to: <span className="font-bold">{navbarLocation || "Selected Location"}</span>
-                  </div>
-                )}
+                      </div>
+                    );
+                  })}
+                </div>
 
                 <button
-                  onClick={handleProceedToNextStep}
+                  onClick={() => setCurrentStep(2)}
                   className="w-full mt-6 bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
                 >
                   Proceed to Payment →
@@ -405,30 +320,51 @@ export default function Checkout() {
               </div>
             )}
 
-            {/* STEP 2: PAYMENT MODULE */}
+            {/* STEP 2: PAYMENT METHOD SELECTION */}
             {currentStep === 2 && (
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <button
-                  onClick={() => {
-                    setPaymentError("");
-                    setCurrentStep(1);
-                  }}
-                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] mb-4 cursor-pointer"
+                  onClick={() => setCurrentStep(1)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#ff6840] mb-4"
                 >
                   <ArrowLeft size={14} /> Back to Address
                 </button>
 
-                <h2 className="text-lg font-bold text-gray-900 mb-4">
-                  Select Payment Method
-                </h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Select Payment Method</h2>
 
                 <div className="space-y-3 mb-6">
+                  {/* Razorpay Online */}
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                      paymentMethod === "online"
+                        ? "border-[#ff6840] bg-orange-50/40 shadow-xs"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="online"
+                      checked={paymentMethod === "online"}
+                      onChange={() => setPaymentMethod("online")}
+                      className="accent-[#ff6840] w-4 h-4 cursor-pointer"
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-gray-800 block">
+                        Pay Online (Razorpay)
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Cards, UPI (Google Pay, PhonePe, Paytm), NetBanking & Wallets
+                      </span>
+                    </div>
+                  </label>
+
                   {/* Cash on Delivery */}
                   <label
                     className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
                       paymentMethod === "cod"
-                        ? "border-[#ff6840] bg-orange-50/40"
-                        : "border-gray-200"
+                        ? "border-[#ff6840] bg-orange-50/40 shadow-xs"
+                        : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
                     <input
@@ -436,28 +372,19 @@ export default function Checkout() {
                       name="payment"
                       value="cod"
                       checked={paymentMethod === "cod"}
-                      onChange={() => {
-                        setPaymentMethod("cod");
-                        setPaymentError("");
-                      }}
-                      className="accent-[#ff6840] w-4 h-4 cursor-pointer"
+                      onChange={() => setPaymentMethod("cod")}
+                      className="accent-[#ff6840] w-4 h-4"
                     />
                     <div>
-                      <span className="text-sm font-bold text-gray-800 block">
-                        Cash on Delivery
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Pay cash or UPI upon food arrival
-                      </span>
+                      <span className="text-sm font-bold text-gray-800 block">Cash on Delivery</span>
+                      <span className="text-xs text-gray-500">Pay cash or UPI upon food arrival</span>
                     </div>
                   </label>
 
                   {/* UPI */}
                   <div
                     className={`p-4 rounded-2xl border transition-all ${
-                      paymentMethod === "upi"
-                        ? "border-[#ff6840] bg-orange-50/40"
-                        : "border-gray-200"
+                      paymentMethod === "upi" ? "border-[#ff6840] bg-orange-50/40" : "border-gray-200"
                     }`}
                   >
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -470,11 +397,9 @@ export default function Checkout() {
                           setPaymentMethod("upi");
                           setPaymentError("");
                         }}
-                        className="accent-[#ff6840] w-4 h-4 cursor-pointer"
+                        className="accent-[#ff6840] w-4 h-4"
                       />
-                      <span className="text-sm font-bold text-gray-800">
-                        UPI / Google Pay / PhonePe / Paytm
-                      </span>
+                      <span className="text-sm font-bold text-gray-800">UPI / Google Pay / PhonePe / Paytm</span>
                     </label>
 
                     {paymentMethod === "upi" && (
@@ -496,9 +421,7 @@ export default function Checkout() {
                   {/* Card Module */}
                   <div
                     className={`p-4 rounded-2xl border transition-all ${
-                      paymentMethod === "card"
-                        ? "border-[#ff6840] bg-orange-50/40"
-                        : "border-gray-200"
+                      paymentMethod === "card" ? "border-[#ff6840] bg-orange-50/40" : "border-gray-200"
                     }`}
                   >
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -511,11 +434,9 @@ export default function Checkout() {
                           setPaymentMethod("card");
                           setPaymentError("");
                         }}
-                        className="accent-[#ff6840] w-4 h-4 cursor-pointer"
+                        className="accent-[#ff6840] w-4 h-4"
                       />
-                      <span className="text-sm font-bold text-gray-800">
-                        Credit / Debit Card
-                      </span>
+                      <span className="text-sm font-bold text-gray-800">Credit / Debit Card</span>
                     </label>
 
                     {paymentMethod === "card" && (
@@ -570,14 +491,6 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Validation Error Banner */}
-                {paymentError && (
-                  <div className="flex items-center gap-2 p-3.5 mb-4 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-100">
-                    <AlertCircle size={16} className="shrink-0" />
-                    <span>{paymentError}</span>
-                  </div>
-                )}
-
                 <button
                   onClick={handleProceedToNextStep}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
@@ -587,7 +500,7 @@ export default function Checkout() {
               </div>
             )}
 
-            {/* STEP 3: REVIEW & PLACE ORDER */}
+            {/* STEP 3: REVIEW & CONFIRM */}
             {currentStep === 3 && (
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-6">
                 <button
@@ -597,9 +510,7 @@ export default function Checkout() {
                   <ArrowLeft size={14} /> Back to Payment
                 </button>
 
-                <h2 className="text-lg font-bold text-gray-900">
-                  Review Your Order
-                </h2>
+                <h2 className="text-lg font-bold text-gray-900">Review Your Order</h2>
 
                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
                   <div className="flex justify-between items-center mb-1">
@@ -613,12 +524,8 @@ export default function Checkout() {
                       Change
                     </button>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">
-                    {user?.fullname || selectedAddrObj?.name || "Customer"}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    {selectedAddrObj?.formattedAddress || selectedAddrObj?.details || navbarLocation || "Delivery Address"}
-                  </p>
+                  <p className="text-sm font-bold text-gray-900">{selectedAddrObj?.name}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">{selectedAddrObj?.details}</p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
@@ -636,8 +543,7 @@ export default function Checkout() {
                   <p className="text-sm font-bold text-gray-900 capitalize">
                     {paymentMethod === "cod" && "Cash on Delivery"}
                     {paymentMethod === "upi" && `UPI (${upiId || "Standard"})`}
-                    {paymentMethod === "card" &&
-                      `Card ending in ${cardDetails.number.slice(-4) || "****"}`}
+                    {paymentMethod === "card" && `Card ending in ${cardDetails.number.slice(-4) || "****"}`}
                   </p>
                 </div>
 
@@ -658,9 +564,7 @@ export default function Checkout() {
           {/* RIGHT COLUMN: ORDER SUMMARY SIDEBAR */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 sticky top-24">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">
-                Order Summary
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h2>
 
               <div className="space-y-3 max-h-60 overflow-y-auto pr-1 scrollbar-thin mb-4">
                 {cartItems.length === 0 ? (
@@ -671,10 +575,7 @@ export default function Checkout() {
                   cartItems.map((item, idx) => {
                     const product = item.product || item;
                     const price = Number(product.price) || 0;
-                    const image =
-                      product.image ||
-                      product.images?.[0] ||
-                      "https://via.placeholder.com/100";
+                    const image = product.image || product.images?.[0] || "https://via.placeholder.com/100";
 
                     return (
                       <div
@@ -708,9 +609,7 @@ export default function Checkout() {
               <div className="border-t border-gray-100 pt-3 space-y-2 text-xs">
                 <div className="flex justify-between text-gray-500">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-gray-800">
-                    ₹{subtotal.toFixed(0)}
-                  </span>
+                  <span className="font-semibold text-gray-800">₹{subtotal.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between text-gray-500">
                   <span>Delivery Fee</span>
@@ -743,7 +642,7 @@ export default function Checkout() {
                   disabled={cartItems.length === 0 || isSubmitting}
                   className="w-full bg-[#ff6840] hover:bg-[#e05530] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {isSubmitting ? "Processing..." : "Place Order"}
+                  {isSubmitting ? "Processing..." : paymentMethod === "online" ? "Pay with Razorpay" : "Place COD Order"}
                 </button>
               )}
             </div>
